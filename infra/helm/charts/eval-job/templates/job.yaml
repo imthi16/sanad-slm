@@ -1,0 +1,50 @@
+# Evals are Jobs, not always-on services (§9.3).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-{{ required "set runId" .Values.runId }}
+  labels:
+    app.kubernetes.io/name: eval-job
+    sanad.ai/run-id: {{ .Values.runId | quote }}
+spec:
+  backoffLimit: {{ .Values.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: eval-job
+        sanad.ai/run-id: {{ .Values.runId | quote }}
+    spec:
+      restartPolicy: Never
+      runtimeClassName: nvidia
+      nodeSelector:
+        sanad.ai/gpu: "true"
+      containers:
+        - name: eval
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          command: ["/bin/bash", "-lc"]
+          args:
+            - >
+              set -euo pipefail;
+              python registry/push.py --pull --version {{ .Values.model.version }} --dest out/eval-model &&
+              bash evals/harness/run_lm_eval.sh out/eval-model {{ .Values.runId }} &&
+              python evals/judge/run_judges.py --run-id {{ .Values.runId }} &&
+              python evals/judge/agreement.py --run-id {{ .Values.runId }} &&
+              python evals/fertility/measure.py --out evals/reports/fertility.json &&
+              python evals/harness/regression_gate.py --run-id {{ .Values.runId }} &&
+              python evals/judge/run_judges.py --ingest --run-id {{ .Values.runId }} --api-url {{ .Values.apiUrl }}
+          env:
+            - name: SANAD_MODE
+              value: sovereign
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TRANSFORMERS_OFFLINE
+              value: "1"
+            - name: SANAD_REGISTRY_S3_ENDPOINT
+              value: {{ .Values.minio.endpoint | quote }}
+            - name: SANAD_API_URL
+              value: {{ .Values.apiUrl | quote }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.existingSecret }}
+          resources: {{- toYaml .Values.resources | nindent 12 }}

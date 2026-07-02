@@ -1,0 +1,10 @@
+---
+# jetson_edge defaults — overridden per device in inventory/edge.yml
+models_dir: /opt/sanad/models
+gguf_file: sanad-Q4_K_M.gguf
+nvpmodel_mode: 0
+llama_ctx: 4096
+llama_parallel: 2
+llama_memory_max: 6G
+exporter_port: 9109
+node_exporter_version: 1.9.0

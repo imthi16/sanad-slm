@@ -1,0 +1,51 @@
+{
+  "title": "SANAD · GPU + Edge",
+  "uid": "sanad-gpu-edge",
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "GPU utilization (DCGM)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [{ "expr": "DCGM_FI_DEV_GPU_UTIL", "legendFormat": "gpu{{gpu}}" }]
+    },
+    {
+      "id": 2,
+      "title": "GPU memory (used / total)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "DCGM_FI_DEV_FB_USED", "legendFormat": "used gpu{{gpu}}" },
+        { "expr": "DCGM_FI_DEV_FB_FREE + DCGM_FI_DEV_FB_USED", "legendFormat": "total gpu{{gpu}}" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "GPU power (W)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 8 },
+      "targets": [{ "expr": "DCGM_FI_DEV_POWER_USAGE", "legendFormat": "gpu{{gpu}}" }]
+    },
+    {
+      "id": 4,
+      "title": "Jetson watts (tegrastats)",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 8 },
+      "targets": [{ "expr": "sanad_edge_watts", "legendFormat": "{{source}}" }]
+    },
+    {
+      "id": 5,
+      "title": "Jetson tok/s · temp",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "sanad_edge_tokens_per_second", "legendFormat": "tok/s {{source}}" },
+        { "expr": "sanad_edge_temp_c", "legendFormat": "°C {{source}}" }
+      ]
+    }
+  ],
+  "schemaVersion": 39
+}

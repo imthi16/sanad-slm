@@ -1,0 +1,9 @@
+# Provision Jetson edge nodes (§9.2): idempotent, tags per step.
+#   just edge-provision                  → full run
+#   ansible-playbook … --tags model      → just re-sync the GGUF
+#   ansible-playbook … --tags bench      → run the jetson benchmark (ops/runbooks/jetson-bench.md)
+- name: SANAD jetson edge provisioning
+  hosts: edge
+  become: true
+  roles:
+    - jetson_edge

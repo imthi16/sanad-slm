@@ -1,0 +1,21 @@
+image:
+  repository: harbor.sanad.local/sanad/sanad-ml
+  tag: latest
+
+runId: "" # required: helm install eval-run-x ./eval-job --set runId=20260702a
+model:
+  name: sanad-qwen3-4b-bank
+  version: v0.1.0
+
+apiUrl: http://sanad-api:8000
+existingSecret: sanad-eval-secrets # SANAD_SERVICE_TOKEN + MinIO creds (SOPS-decrypted)
+
+minio:
+  endpoint: http://minio.registry.svc:9000
+
+resources:
+  limits:
+    nvidia.com/gpu: 1
+
+backoffLimit: 1
+ttlSecondsAfterFinished: 86400

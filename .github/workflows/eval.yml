@@ -1,0 +1,89 @@
+# GPU evaluation pipeline — manual/nightly on the self-hosted GPU runner (CLAUDE.md §9.5).
+# Contains the regression gate: fine-tuned ≥ base +5 pts on domain eval AND ≥ base −1 pt on
+# ArabicMMLU (no catastrophic forgetting) — else red.
+name: eval
+
+on:
+  workflow_dispatch:
+    inputs:
+      model_version:
+        description: "registry model version (e.g. v0.3.0) or HF path for base runs"
+        required: true
+      run_judges:
+        description: "also run the 3C3H judge harness"
+        type: boolean
+        default: true
+  schedule:
+    - cron: "0 1 * * *" # nightly 01:00 UTC (05:00 GST)
+
+permissions:
+  contents: read
+  pull-requests: write # summary comment
+
+jobs:
+  evaluate:
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 480
+    env:
+      SANAD_MODE: dev
+      RUN_ID: ${{ github.run_id }}
+      MODEL_VERSION: ${{ inputs.model_version || 'latest' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: cd ml && uv sync --all-extras
+
+      - name: pull model from MinIO registry
+        run: |
+          cd ml && uv run python registry/push.py --pull --version "$MODEL_VERSION" --dest out/eval-model
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+          SANAD_REGISTRY_S3_ENDPOINT: ${{ vars.MINIO_ENDPOINT }}
+
+      - name: lm-eval harness (pinned rev)
+        run: cd ml && bash evals/harness/run_lm_eval.sh out/eval-model
+
+      - name: domain eval (sanad_bank_eval_v1)
+        run: cd ml && uv run python evals/judge/run_judges.py --run-id "$RUN_ID" --answers-only
+
+      - name: 3C3H judges + agreement
+        if: ${{ inputs.run_judges != false }}
+        run: |
+          cd ml
+          uv run python evals/judge/run_judges.py --run-id "$RUN_ID"
+          uv run python evals/judge/agreement.py --run-id "$RUN_ID"
+
+      - name: fertility
+        run: cd ml && uv run python evals/fertility/measure.py --out evals/reports/fertility.json
+
+      - name: regression gate
+        run: cd ml && uv run python evals/harness/regression_gate.py --run-id "$RUN_ID" \
+          --min-domain-delta 5.0 --max-arabicmmlu-drop 1.0
+
+      - name: upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-${{ github.run_id }}
+          path: ml/evals/reports/
+
+      - name: ingest to API
+        run: |
+          cd ml && uv run python evals/judge/run_judges.py --ingest --run-id "$RUN_ID" \
+            --api-url "${{ vars.SANAD_API_URL }}"
+        env:
+          SANAD_SERVICE_TOKEN: ${{ secrets.SANAD_SERVICE_TOKEN }}
+
+      - name: summary comment
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const summary = fs.readFileSync('ml/evals/reports/summary.md', 'utf8');
+            const prs = await github.rest.pulls.list({ ...context.repo, state: 'open', head: context.ref });
+            if (prs.data[0]) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: prs.data[0].number, body: summary,
+              });
+            }

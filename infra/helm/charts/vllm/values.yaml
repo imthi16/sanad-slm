@@ -1,0 +1,31 @@
+image:
+  repository: harbor.sanad.local/sanad/vllm
+  tag: "0.9.0"
+  pullPolicy: IfNotPresent
+
+model:
+  name: sanad-qwen3-4b-bank
+  version: v0.1.0
+  servedName: sanad-bank-awq
+  quantDir: awq-w4a16
+  maxModelLen: 8192
+  gpuMemUtil: "0.90"
+
+minio:
+  endpoint: http://minio.registry.svc:9000
+  bucket: sanad-models
+  existingSecret: minio-sync-creds # SOPS-decrypted
+
+storage:
+  size: 30Gi
+  storageClassName: local-path
+
+resources:
+  limits:
+    nvidia.com/gpu: 1
+
+# HPA on queue depth (§6.1) — requires prometheus-adapter exposing vllm:num_requests_waiting
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2

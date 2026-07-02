@@ -1,0 +1,60 @@
+# Operational alerts beyond the sovereignty rule (applied by the observability module).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sanad-operational
+  namespace: monitoring
+  labels:
+    release: kps
+spec:
+  groups:
+    - name: sanad.api
+      rules:
+        - alert: SanadApiHighLatency
+          expr: >
+            histogram_quantile(0.95,
+              sum(rate(sanad_api_request_seconds_bucket{route="/v1/chat/completions"}[5m])) by (le))
+            > 2
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "chat p95 latency above 2s"
+        - alert: SanadUpstreamDown
+          expr: sanad_upstream_up == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "inference upstream {{ $labels.upstream }} unhealthy"
+        - alert: SanadApiNotReady
+          expr: up{job=~".*sanad-api.*"} == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "sanad-api scrape target down"
+    - name: sanad.gpu
+      rules:
+        - alert: SanadGpuMemoryPressure
+          expr: DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE) > 0.97
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "GPU memory > 97% — vLLM may start rejecting requests"
+        - alert: SanadGpuHot
+          expr: DCGM_FI_DEV_GPU_TEMP > 85
+          for: 5m
+          labels: { severity: warning }
+          annotations:
+            summary: "GPU above 85°C"
+    - name: sanad.edge
+      rules:
+        - alert: SanadEdgeSilent
+          expr: absent_over_time(sanad_edge_watts[10m])
+          labels: { severity: warning }
+          annotations:
+            summary: "no tegrastats telemetry from any edge node for 10m"
+        - alert: SanadEdgeThrottling
+          expr: sanad_edge_temp_c > 70
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "Jetson {{ $labels.source }} above 70°C — thermal throttling imminent"

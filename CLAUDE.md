@@ -11,6 +11,16 @@ This file is the single source of truth for Claude Code and human contributors. 
 before writing code. When this file and a README disagree, this file wins. Update it via PR when
 architecture decisions change (and add an ADR in `docs/adr/`).
 
+> **⚠️ Current repository state (as of 2026-07-02): P0 scaffold implemented; `just check` GREEN.**
+> The full §2 tree exists (see ADR-0002 for in-spec implementation choices), lockfiles are
+> generated (`ml/uv.lock`, `apps/api/uv.lock`, `apps/web/pnpm-lock.yaml`), and `just check`
+> passes end-to-end: ruff+mypy+pytest (both Python workspaces), biome+tsc+vitest+i18n-sync
+> (web), data-gate, verify-no-cdn. Outstanding before P0 sign-off: (1) Playwright RTL/LTR
+> snapshots (`cd apps/web && pnpm e2e` — needs `playwright install chromium` once, online);
+> (2) fill placeholder pins before their phases — HF revision sha (train config, P2),
+> `LM_EVAL_REV` (P4), llama.cpp sha (P3), age recipient in `.sops.yaml` (first secret).
+> Remove this notice once the RTL snapshot passes.
+
 ---
 
 ## 0. Mission, prime directives, non-goals
@@ -655,7 +665,8 @@ UI/tokenizer/3D-shared state only; generated client from OpenAPI (`just api-type
 - **Streaming Arabic must not tear ligatures:** buffer SSE deltas and flush on grapheme
   boundaries via `Intl.Segmenter('ar', {granularity: 'grapheme'})` (`lib/bidi.ts`).
 - Numerals: `Intl.NumberFormat(locale)`; a settings toggle for Eastern Arabic numerals
-  (`ar-u-nu-arabext`) in AR mode.
+  (`ar-u-nu-arab` — the UAE/MSA Arabic-Indic digits ٠١٢٣; CLDR `arabext` is the
+  Persian/Urdu set and is wrong here) in AR mode.
 - Playwright captures RTL **and** LTR snapshots for every page; both must pass.
 
 ### 8.7 Frontend quality bars

@@ -1,0 +1,26 @@
+# Installed by ansible roles/jetson_edge (§6.2, §9.2). MemoryMax sized per board var.
+[Unit]
+Description=SANAD llama-server (GGUF Q4_K_M edge inference)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+TimeoutStartSec=180
+# container name is stable so tegrastats-exporter can correlate
+ExecStartPre=-/usr/bin/docker rm -f sanad-llama
+ExecStart=/usr/bin/docker run --name sanad-llama --rm \
+    --runtime nvidia --network host \
+    -v /opt/sanad/models:/models:ro \
+    -e SANAD_GGUF_PATH=/models/sanad-Q4_K_M.gguf \
+    -e SANAD_CTX={{ llama_ctx | default(4096) }} \
+    -e SANAD_PARALLEL={{ llama_parallel | default(2) }} \
+    {{ llamacpp_image }}
+ExecStop=/usr/bin/docker stop sanad-llama
+MemoryMax={{ llama_memory_max | default("6G") }}
+
+[Install]
+WantedBy=multi-user.target

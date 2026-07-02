@@ -1,0 +1,9 @@
+# Edge-mode overlay: API routes to llama.cpp only, zero egress (§4).
+#   docker compose -f docker-compose.yml -f compose.edge.yml --profile edge up -d
+services:
+  api:
+    environment:
+      SANAD_MODE: edge
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"

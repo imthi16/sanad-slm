@@ -1,0 +1,79 @@
+{
+  "title": "SANAD · Overview",
+  "uid": "sanad-overview",
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Chat p50/p95 latency",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum(rate(sanad_api_request_seconds_bucket{route=\"/v1/chat/completions\"}[5m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(sanad_api_request_seconds_bucket{route=\"/v1/chat/completions\"}[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Requests by route/status",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(sanad_api_request_seconds_count[5m])) by (route, status)",
+          "legendFormat": "{{route}} {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Tokens proxied (per model)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(sanad_chat_tokens_total[5m])) by (model, kind)",
+          "legendFormat": "{{model}} {{kind}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Upstream health",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 8, "w": 6, "h": 8 },
+      "targets": [{ "expr": "sanad_upstream_up", "legendFormat": "{{upstream}}" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Sovereign egress overflow (MUST be ≤0)",
+      "type": "timeseries",
+      "gridPos": { "x": 18, "y": 8, "w": 6, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(container_network_transmit_bytes_total{namespace=\"sanad\",pod!~\"sanad-web.*\"}[5m])) - sum(rate(container_network_receive_bytes_total{namespace=\"sanad\"}[5m]))",
+          "legendFormat": "tx − rx"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39
+}
