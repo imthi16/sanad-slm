@@ -6,17 +6,28 @@ import { useUiStore } from "@/store/ui";
  * no-WebGL / reduced-motion / low-tier mobile.
  */
 import { AdaptiveDpr, PerformanceMonitor } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
-import { type ReactNode, useState } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { EffectComposer } from "@react-three/postprocessing";
+import { Component, type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+// Probe once per page load and release the probe context immediately: browsers cap live
+// WebGL contexts (~16/page) and evict the OLDEST — probing on every render floods the pool
+// and silently kills the real scene contexts (blank canvas, later null getContextAttributes).
+let webglProbe: boolean | null = null;
+
 export function webglAvailable(): boolean {
+  if (webglProbe !== null) return webglProbe;
   try {
     const canvas = document.createElement("canvas");
-    return Boolean(canvas.getContext("webgl2") ?? canvas.getContext("webgl"));
+    const ctx = canvas.getContext("webgl2") ?? canvas.getContext("webgl");
+    // A context can exist yet be lost/software-dead — it then reports null attributes.
+    webglProbe = Boolean(ctx?.getContextAttributes());
+    ctx?.getExtension("WEBGL_lose_context")?.loseContext();
   } catch {
-    return false;
+    webglProbe = false;
   }
+  return webglProbe;
 }
 
 export function Poster({ label, children }: { label: string; children?: ReactNode }) {
@@ -32,6 +43,61 @@ export function Poster({ label, children }: { label: string; children?: ReactNod
       </div>
     </div>
   );
+}
+
+/**
+ * Postprocessing wrapper: EffectComposer reads the context attributes during init and
+ * crashes on lost/software/mid-remount contexts (null attributes). Mount it one commit
+ * late, once the live context verifiably has attributes; skip effects otherwise — the
+ * raw scene still renders.
+ */
+export function PostFX({ children }: { children: ReactNode }) {
+  const gl = useThree((s) => s.gl);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let ok = false;
+    try {
+      ok = Boolean(gl.getContext()?.getContextAttributes());
+    } catch {
+      ok = false;
+    }
+    setReady(ok);
+  }, [gl]);
+  if (!ready) return null;
+  return <EffectComposer>{children as React.JSX.Element}</EffectComposer>;
+}
+
+/** True once document.fonts.ready resolves — gate canvas-rasterized text on this. */
+export function useFontsReady(): boolean {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    document.fonts.ready.then(() => {
+      if (alive) setReady(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return ready;
+}
+
+interface BoundaryProps {
+  fallback: ReactNode;
+  children: ReactNode;
+}
+
+/** Any scene crash (context loss mid-flight, shader failure) degrades to the poster. */
+class SceneErrorBoundary extends Component<BoundaryProps, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  override render(): ReactNode {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
 }
 
 export interface SceneFrameProps {
@@ -61,18 +127,20 @@ export function SceneFrame({
   }
 
   return (
-    <div className={className ?? "h-full w-full"} aria-label={label} role="img">
-      <Canvas
-        dpr={degraded ? 1 : [1, 2]}
-        frameloop={animated ? "always" : "demand"}
-        camera={camera ?? { position: [0, 0, 8], fov: 45 }}
-        gl={{ antialias: true, powerPreference: "high-performance" }}
-      >
-        <PerformanceMonitor onDecline={() => setDegraded(true)}>
-          <AdaptiveDpr pixelated />
-          {children}
-        </PerformanceMonitor>
-      </Canvas>
-    </div>
+    <SceneErrorBoundary fallback={<Poster label={label}>{poster}</Poster>}>
+      <div className={className ?? "h-full w-full"} aria-label={label} role="img">
+        <Canvas
+          dpr={degraded ? 1 : [1, 2]}
+          frameloop={animated ? "always" : "demand"}
+          camera={camera ?? { position: [0, 0, 8], fov: 45 }}
+          gl={{ antialias: true, powerPreference: "high-performance" }}
+        >
+          <PerformanceMonitor onDecline={() => setDegraded(true)}>
+            <AdaptiveDpr pixelated />
+            {children}
+          </PerformanceMonitor>
+        </Canvas>
+      </div>
+    </SceneErrorBoundary>
   );
 }
