@@ -51,10 +51,10 @@ spec:
           expr: absent_over_time(sanad_edge_watts[10m])
           labels: { severity: warning }
           annotations:
-            summary: "no tegrastats telemetry from any edge node for 10m"
+            summary: "no telemetry from any edge node for 10m"
         - alert: SanadEdgeThrottling
           expr: sanad_edge_temp_c > 70
           for: 10m
           labels: { severity: warning }
           annotations:
-            summary: "Jetson {{ $labels.source }} above 70°C — thermal throttling imminent"
+            summary: "edge node {{ $labels.source }} above 70°C — thermal throttling imminent"

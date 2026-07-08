@@ -97,7 +97,7 @@ edge-sim:
 check:
     cd {{ML}} && uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run pytest -q
     cd {{API}} && uv run ruff check . && uv run ruff format --check . && uv run mypy src && uv run pytest -q
-    cd {{WEB}} && pnpm exec biome check . && pnpm exec tsc --noEmit && pnpm test -- --run && node scripts/check-i18n-sync.mjs
+    cd {{WEB}} && pnpm exec biome check . && pnpm exec tsc --noEmit && pnpm exec vitest --run && node scripts/check-i18n-sync.mjs
     just data-gate
     just verify-no-cdn
 
@@ -115,13 +115,10 @@ tofu-plan env:
 tofu-apply env:
     cd infra/terraform/envs/{{env}} && tofu apply
 
-edge-provision:
-    cd infra/ansible && ansible-playbook -i inventory/edge.yml playbooks/edge.yml
-
 # sops-decrypted values → helm upgrade --install of all charts
 helm-deploy env:
     bash infra/helm/deploy.sh {{env}}
 
-# runs ops/runbooks/jetson-bench.md steps, writes evals/reports/edge_bench.json
-bench-jetson host:
-    cd infra/ansible && ansible-playbook -i inventory/edge.yml playbooks/edge.yml --tags bench -e bench_host={{host}}
+# local llama.cpp bench (ops/runbooks/edge-bench.md), writes evals/reports/edge_bench.json
+bench-edge:
+    bash ops/runbooks/edge-bench.sh

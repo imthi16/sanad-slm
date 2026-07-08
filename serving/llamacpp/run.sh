@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# llama-server launcher (§6.2). Orin Nano 8 GB envelope for a 4B Q4_K_M:
-# ~2.5–3 GB weights + 0.5–1.5 GB KV; expect ~20–30 tok/s — RE-BENCHMARK on the actual
-# JetPack/llama.cpp pair and record it (ops/runbooks/jetson-bench.md).
+# llama-server launcher (§6.2) — CPU/edge-box serving of the GGUF artifact.
+# For a 4B Q4_K_M: ~2.5–3 GB weights + 0.5–1.5 GB KV. Benchmark on the actual
+# host/llama.cpp pair and record it (ops/runbooks/edge-bench.md → `just bench-edge`).
 set -euo pipefail
 
 MODEL="${SANAD_GGUF_PATH:-/models/sanad-Q4_K_M.gguf}"
@@ -10,7 +10,7 @@ PARALLEL="${SANAD_PARALLEL:-2}"
 PORT="${SANAD_PORT:-8080}"
 
 if [[ ! -f "$MODEL" ]]; then
-    echo "FATAL: GGUF missing at $MODEL — run the Ansible model sync first" >&2
+    echo "FATAL: GGUF missing at $MODEL — sync it from MinIO first (mc mirror)" >&2
     exit 1
 fi
 if [[ -f "$MODEL.sha256" ]]; then

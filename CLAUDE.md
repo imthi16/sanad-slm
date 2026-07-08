@@ -11,14 +11,17 @@ This file is the single source of truth for Claude Code and human contributors. 
 before writing code. When this file and a README disagree, this file wins. Update it via PR when
 architecture decisions change (and add an ADR in `docs/adr/`).
 
-> **⚠️ Current repository state (as of 2026-07-02): P0 scaffold implemented; `just check` GREEN.**
+> **⚠️ Current repository state (as of 2026-07-08): P0 scaffold implemented; `just check` GREEN.**
 > The full §2 tree exists (see ADR-0002 for in-spec implementation choices), lockfiles are
 > generated (`ml/uv.lock`, `apps/api/uv.lock`, `apps/web/pnpm-lock.yaml`), and `just check`
 > passes end-to-end: ruff+mypy+pytest (both Python workspaces), biome+tsc+vitest+i18n-sync
 > (web), data-gate, verify-no-cdn. Outstanding before P0 sign-off: (1) Playwright RTL/LTR
-> snapshots (`cd apps/web && pnpm e2e` — needs `playwright install chromium` once, online);
-> (2) fill placeholder pins before their phases — HF revision sha (train config, P2),
-> `LM_EVAL_REV` (P4), llama.cpp sha (P3), age recipient in `.sops.yaml` (first secret).
+> baselines — chromium is installed and `cd apps/web && pnpm e2e` runs all 12 RTL+LTR specs,
+> but they fail with "snapshot doesn't exist" because no baseline PNGs are committed yet; seal
+> them with `pnpm exec playwright test --update-snapshots`, visually review the generated
+> `e2e/rtl-ltr.spec.ts-snapshots/*.png`, commit, and re-run green; (2) fill placeholder pins
+> before their phases — HF revision sha (train config, P2), `LM_EVAL_REV` (P4), llama.cpp sha
+> (P3), age recipient in `.sops.yaml` (first secret).
 > Remove this notice once the RTL snapshot passes.
 
 ---
@@ -28,7 +31,7 @@ architecture decisions change (and add an ADR in `docs/adr/`).
 **Mission.** Prove — with a shipped, measured artifact — that a ~4B bilingual SLM, fine-tuned for
 < $50 on a single 24 GB GPU, can **match a 5–10× larger general model on a narrow UAE
 banking/compliance domain** while running fully air-gapped on a sovereign GPU node (vLLM + AWQ)
-and on a Jetson Orin at the edge (llama.cpp + GGUF), with a reproducible Arabic/English
+and on commodity CPU-only hardware at the edge (llama.cpp + GGUF), with a reproducible Arabic/English
 evaluation harness (OALL-v2 native tasks + 3C3H multi-judge with disagreement tracking).
 
 ### Prime directives (never violate)
@@ -61,13 +64,28 @@ evaluation harness (OALL-v2 native tasks + 3C3H multi-judge with disagreement tr
 - No multi-tenant SaaS auth (single-team demo auth is enough); no mobile app.
 - No Kubernetes operator authoring — plain Helm charts on k3s are the ceiling.
 
+### Zero-cost portfolio track (ADR-0003 + ADR-0004 — active)
+
+This is a portfolio project; the whole plan executes at **$0** on the owner's workstation
+(i9-14900K 24C/32T + RTX 4090 24 GB — exactly the "single 24 GB GPU" the recipe targets).
+Read paid-infra mentions through ADR-0003/0004: **training runs locally on the RTX 4090**
+(bf16 native; Kaggle/Colab free tier is overflow fallback only); the **edge target is
+CPU-only llama.cpp on the same box** (compose `edge` profile; numbers labeled `x86-local`;
+the Jetson hardware target was removed by ADR-0004); large-model comparator via **free-tier
+hosted APIs** (dev mode, `sovereign=false`) or the claim is honestly narrowed; judges served
+quantized on the 4090; k3s demos on **k3d** locally; public artifacts mirrored to
+**Hugging Face Hub**; CI on GitHub Actions free tier with `eval.yml` as `workflow_dispatch`
+ingesting locally produced reports (no self-hosted GPU runner). Terraform/Helm stay in-repo
+as CI-validated artifacts (`tofu validate`, lint) but are never applied against paid
+infrastructure. Budget lines in reports read "$0 (local compute)".
+
 ---
 
 ## 1. System architecture
 
 ```
-                 ┌────────────────────────  TRAIN (burst, cloud me-central-1 or local RTX 4090)
-                 │  Terraform: gpu_train instance ──▶ uv env ──▶ Unsloth QLoRA+DoRA (Qwen3-4B)
+                 ┌────────────────────────  TRAIN (local RTX 4090 workstation — ADR-0004)
+                 │  uv env ──▶ Unsloth QLoRA+DoRA (Qwen3-4B)   [gpu_train TF module: plan-only artifact]
                  │        │                                    │
                  │        ▼                                    ▼
                  │  MLflow (self-hosted)                merge bf16 ─▶ llm-compressor AWQ-W4A16
@@ -75,9 +93,9 @@ evaluation harness (OALL-v2 native tasks + 3C3H multi-judge with disagreement tr
                  ▼
         ┌── MinIO model registry (s3://sanad-models/…, manifest.json, sha256, cosign) ──┐
         │                                                                               │
-   SOVEREIGN SERVER (k3s, on-prem)                                            EDGE (Jetson Orin, Ansible)
+   SOVEREIGN SERVER (k3s, on-prem)                                        EDGE (CPU-only x86 box)
    vLLM (AWQ, OpenAI-compatible) ◀──┐                                  llama-server (GGUF Q4_K_M)
-        │                           │ ModelRouter                               │  tegrastats exporter
+        │                           │ ModelRouter                               │  /metrics + RAPL
         ▼                           │                                           ▼
    sanad-api (FastAPI, SSE) ────────┴──────────── Postgres 17 · Redis · Langfuse(optional)
         │            ▲
@@ -93,7 +111,7 @@ Three runtime **modes** select behavior everywhere (config, compose profiles, He
 |---|---|---|---|---|
 | `dev` | laptop / cloud GPU | online allowed | vLLM or llama.cpp local | local + optional API judge (calibration only, flagged) |
 | `sovereign` | k3s on-prem | **zero egress** | vLLM (AWQ) | local only (Falcon-H1-7B + ALLaM-7B) |
-| `edge` | Jetson Orin | zero egress | llama.cpp (GGUF) | n/a (telemetry only) |
+| `edge` | CPU-only x86 box | zero egress | llama.cpp (GGUF) | n/a (telemetry only) |
 
 ---
 
@@ -154,12 +172,11 @@ sanad/
 │       └── tests/ (vitest) · e2e/ (playwright)
 ├── serving/
 │   ├── vllm/{Dockerfile, entrypoint.sh}
-│   └── llamacpp/{Dockerfile.jetson, run.sh, systemd/llama-server.service}
+│   └── llamacpp/run.sh            # CPU edge launcher (image: ghcr llama.cpp, compose `edge` profile)
 ├── infra/
 │   ├── terraform/                # OpenTofu-compatible HCL
 │   │   ├── envs/{dev, prod}/main.tf
 │   │   └── modules/{gpu_train, k3s_cluster, registry_minio_harbor, observability, network}
-│   ├── ansible/{inventory/edge.yml, roles/jetson_edge/, playbooks/edge.yml}
 │   ├── helm/charts/{sanad-api, sanad-web, vllm, eval-job, sovereign-guard}
 │   └── compose/{docker-compose.yml, compose.sovereign.yml, compose.edge.yml}
 ├── ops/{dashboards/, alerts/, runbooks/}
@@ -198,8 +215,7 @@ bootstrapping, run `uv lock` / `pnpm install` and trust resolution; do not hand-
 | Area | Choice | Pin | Why |
 |---|---|---|---|
 | GPU server | **vLLM** (V1 engine) | ≥ 0.9 | Highest-throughput OSS server; native AWQ/compressed-tensors, prefix caching, OpenAI-compatible |
-| Edge | **llama.cpp `llama-server`** | pinned commit | Best Jetson path (`GGML_CUDA=1`); OpenAI-compatible; ~25–55 tok/s for 3–4B Q4 on Orin-class |
-| Edge base images | jetson-containers (dusty-nv) | JetPack 6.x / L4T r36 | Pre-built CUDA llama.cpp for Orin |
+| Edge | **llama.cpp `llama-server`** | pinned image digest | CPU-only x86 serving of the GGUF artifact; OpenAI-compatible; measured via `just bench-edge` |
 | Contract | OpenAI Chat Completions API | — | Everything upstream of the gateway speaks one dialect; ModelRouter just swaps base URLs |
 
 ### 3.3 Backend (apps/api)
@@ -241,14 +257,13 @@ bootstrapping, run `uv lock` / `pnpm install` and trust resolution; do not hand-
 | Area | Choice | Pin | Why |
 |---|---|---|---|
 | IaC | **OpenTofu-compatible HCL** (works on Terraform ≥ 1.10 too) | tofu ≥ 1.8 | OpenTofu = open-source, sovereign-friendly licensing; S3-native state locking (no DynamoDB) |
-| Cloud burst | AWS **me-central-1 (UAE)** GPU instance for training | g5/g6e class (variable) | Data residency for any real data; verify instance availability per region before apply |
+| Cloud burst | `gpu_train` module (AWS me-central-1) — **plan-only artifact, never applied** | — | Training runs on the local RTX 4090 (ADR-0004); module kept as reviewable IaC |
 | On-prem K8s | **k3s** v1.32 + Helm ≥ 3.17 | — | The 2026 default for edge/on-prem lightweight clusters |
 | Registry | **Harbor** (images) + **MinIO** (models/artifacts) | ≥ 2.12 / latest | Self-hosted, air-gap replicable; Harbor scans + signs |
 | Secrets | **SOPS + age** | ≥ 3.10 | Git-native encrypted secrets, no cloud KMS dependency |
-| Edge config mgmt | **Ansible** (`roles/jetson_edge`) | core ≥ 2.18 | Idempotent Jetson provisioning: JetPack deps, docker, llama-server systemd, exporters |
 | Supply chain | Trivy (scan) + **Syft SBOM** + **cosign** sign/verify | latest | 2026 table stakes; sovereign admission verifies signatures |
-| Observability | kube-prometheus-stack + **dcgm-exporter** (GPU) + Loki + custom tegrastats exporter (Jetson) | latest | Includes the signature **egress-zero alert** for sovereign namespaces |
-| CI/CD | GitHub Actions + one **self-hosted GPU runner** | — | eval.yml runs real GPU evals; air-gapped builds replay on the self-hosted runner |
+| Observability | kube-prometheus-stack + **dcgm-exporter** (GPU) + Loki + llama-server `/metrics` (edge) | latest | Includes the signature **egress-zero alert** for sovereign namespaces |
+| CI/CD | GitHub Actions (free tier, public repo) | — | eval.yml = `workflow_dispatch` ingesting locally produced eval reports (ADR-0003/0004; no self-hosted GPU runner) |
 | Task runner | **just** | ≥ 1.36 | Readable, cross-platform command surface (`just --list`) |
 
 ---
@@ -359,12 +374,13 @@ outputs: {adapter_dir: out/adapter, merged_dir: out/merged-bf16}
 `train/sft.py` responsibilities: load config → Unsloth `FastLanguageModel` → apply Qwen3 chat
 template with `enable_thinking=False` (we ship the low-latency non-thinking mode) → TRL
 `SFTTrainer` → log loss/LR/VRAM to MLflow → save adapter **and** merged bf16 →
-`registry/manifest.py` writes lineage. Acceptance: run completes on a single 24 GB GPU with
-< 16 GB peak VRAM; val loss curve monotone-ish; total cloud cost logged (< $50 budget).
+`registry/manifest.py` writes lineage. Acceptance: run completes on the local RTX 4090 with
+< 16 GB peak VRAM; val loss curve monotone-ish; total compute cost logged ($0 — local
+workstation, ADR-0004; if a run overflows to Kaggle/Colab T4, use an fp16 config variant).
 
 **Comparator matrix** (evaluated, never retrained): ALLaM-7B-Instruct-preview, jais-family-6.7b-chat
 (Apache-2.0, Arabic-native), Falcon-H1-Arabic-3B/7B (SOTA reference), and one large generalist
-(e.g., Qwen2.5-72B-Instruct via a rented endpoint, **dev mode only**) for the headline
+(e.g., Qwen2.5-72B-Instruct via a free-tier hosted API — ADR-0003, **dev mode only**) for the headline
 "small-matches-large in-domain" claim.
 
 ### 5.3 Quantization
@@ -377,7 +393,7 @@ uv run python quantize/awq.py --model out/merged-bf16 \
   --recipe configs/quant/awq-w4a16.yaml \
   --calib data/processed/calib_bilingual_512.jsonl   # ≥40% Arabic — English-only calib degrades AR
 
-# (b) GGUF Q4_K_M for llama.cpp/Jetson — with importance matrix on bilingual text
+# (b) GGUF Q4_K_M for llama.cpp CPU edge — with importance matrix on bilingual text
 python llama.cpp/convert_hf_to_gguf.py out/merged-bf16 --outfile out/sanad-f16.gguf
 ./llama-imatrix -m out/sanad-f16.gguf -f data/processed/calib_bilingual.txt -o out/imatrix.dat
 ./llama-quantize --imatrix out/imatrix.dat out/sanad-f16.gguf out/sanad-Q4_K_M.gguf Q4_K_M
@@ -428,7 +444,7 @@ Falcon-H1, Llama-3.2} tokenizers over three fixed corpora (MSA news 10k words, b
 English 10k). Outputs `fertility.json` → consumed by the API and the 3D hero. This is the
 project's signature insight: fertility ≈ latency ≈ cost ≈ effective context for Arabic.
 
-**(e) Efficiency panel:** TTFT, tok/s (prompt+gen), peak VRAM/RSS, watts (Jetson via tegrastats;
+**(e) Efficiency panel:** TTFT, tok/s (prompt+gen), peak VRAM/RSS, watts (CPU edge via RAPL;
 GPU via DCGM), $/1M output tokens (electricity+amortization model in `evals/reports/cost_model.md`).
 
 ### 5.5 Model registry & release
@@ -467,18 +483,19 @@ quantization is auto-detected from the compressed-tensors checkpoint — don't p
 `--quantization awq` flags unless vLLM asks; probe `/health`; one model per pod (HPA on
 `num_requests_waiting`).
 
-### 6.2 llama.cpp (Jetson edge)
+### 6.2 llama.cpp (CPU edge — ADR-0004)
 
-- Build inside jetson-containers base (L4T r36 / JetPack 6.x) with `GGML_CUDA=1`; pin the
-  llama.cpp commit in `serving/llamacpp/Dockerfile.jetson`.
-- Run: `llama-server -m /models/sanad-Q4_K_M.gguf -ngl 99 -c 4096 --host 0.0.0.0 --port 8080
-  --parallel 2` under systemd (`Restart=always`, `MemoryMax=` sized to board).
-- Expected envelope on Orin Nano 8 GB for a 4B Q4_K_M: ~2.5–3 GB weights + ~0.5–1.5 GB KV;
-  ~20–30 tok/s gen. **Re-benchmark on the actual JetPack/llama.cpp pair and record it** —
-  published numbers vary widely by version/power mode (`ops/runbooks/jetson-bench.md`).
-- `tegrastats-exporter` (small Python sidecar, `roles/jetson_edge`) parses tegrastats →
-  Prometheus: `sanad_edge_watts`, `sanad_edge_gpu_util`, `sanad_edge_temp_c`, plus llama-server
-  `/metrics`.
+- Image: `ghcr.io/ggml-org/llama.cpp:server` (pin a digest before P3), CPU-only x86; launched
+  by the compose `edge` profile or `serving/llamacpp/run.sh`.
+- Run: `llama-server -m /models/sanad-Q4_K_M.gguf -c 4096 --host 0.0.0.0 --port 8080
+  --parallel 2 --metrics` (no `-ngl` — the edge demo is deliberately GPU-free to prove the
+  CPU-only deployment shape).
+- Envelope for a 4B Q4_K_M: ~2.5–3 GB weights + ~0.5–1.5 GB KV in RAM. **Benchmark on the
+  actual host/llama.cpp pair and record it** — `just bench-edge`
+  (`ops/runbooks/edge-bench.md`), which also samples package watts via Intel RAPL when
+  readable; results labeled `platform: x86-local`.
+- Telemetry: llama-server `/metrics` + the dev-mode demo publisher feed
+  `sanad_edge_watts`, `sanad_edge_gpu_util`, `sanad_edge_temp_c` via the API SSE bridge.
 
 ### 6.3 ModelRouter contract
 
@@ -615,7 +632,7 @@ single easing (`cubic-bezier(.2,.8,.2,1)`); `prefers-reduced-motion` collapses a
 
 `/` Home (hero + headline results strip) · `/chat` bilingual streaming chat · `/evals` benchmark
 + judge dashboard · `/tokenizer` Fertility Lab (2D detail view of the hero data) · `/edge` live
-Jetson telemetry · `/registry` artifact lineage. Global: language toggle (EN/AR) that flips
+edge-node telemetry · `/registry` artifact lineage. Global: language toggle (EN/AR) that flips
 `<html dir lang>`, sovereign-mode badge (reads `/v1/models` meta), model picker.
 
 ### 8.4 3D scenes (`src/three/`) — the centerpiece
@@ -645,7 +662,7 @@ are `MeshTransmissionMaterial`-lite (or plain translucent standard material if G
 complains); labels via drei `<Text>` (troika) in both scripts.
 
 **(c) EdgeBoard — live telemetry (`/edge`).**
-A low-poly Jetson board (single glTF ≤ 300 KB, draco-compressed, authored once) with emissive
+A low-poly edge board (single glTF ≤ 300 KB, draco-compressed, authored once) with emissive
 heat responding to live watts from `/v1/telemetry/stream`; brass needle gauges (tok/s, °C, W)
 are HTML overlays (drei `<Html>`) so numbers stay crisp and accessible. SSE hook `lib/sse.ts`
 reconnects with backoff.
@@ -706,13 +723,12 @@ module "k3s"   { source = "../../modules/k3s_cluster"  nodes = var.onprem_nodes 
 module "obs"   { source = "../../modules/observability" cluster = module.k3s }
 ```
 
-### 9.2 Ansible — `roles/jetson_edge`
+### 9.2 Edge serving (compose `edge` profile — ADR-0004)
 
-Tasks (idempotent, tags per step): apt deps + docker + NVIDIA runtime check → pull pinned
-llamacpp image (or build via jetson-containers) → sync GGUF from MinIO (`mc mirror`, sha256
-verify) → install `llama-server.service` + `tegrastats-exporter.service` → node_exporter → UFW
-(allow 8080/9100 from server subnet only) → power mode (`nvpmodel -m` per board var) → reboot
-handler. Inventory `edge.yml` holds per-device vars (board model, power mode, model version).
+No config-management layer: the edge deployment is the compose `edge` profile (pinned
+llama.cpp server image, GGUF mounted read-only, sha256-verified on sync from MinIO via
+`mc mirror`). `just edge-sim` brings it up; `just bench-edge` records the efficiency numbers.
+The former Ansible/Jetson provisioning path was removed by ADR-0004.
 
 ### 9.3 Helm charts (`infra/helm/charts`)
 
@@ -740,8 +756,8 @@ handler. Inventory `edge.yml` holds per-device vars (board model, power mode, mo
   biome + tsc + vitest + playwright smoke (LTR+RTL) · `just data-gate` (license/manifest) ·
   docker build api/web → Trivy scan → Syft SBOM → cosign sign → push Harbor (on main) ·
   `just verify-no-cdn`.
-- **eval.yml** (manual/nightly, self-hosted GPU runner): pulls model version, runs harness +
-  judges + fertility, uploads report artifact, posts summary comment, ingests to API. Contains
+- **eval.yml** (`workflow_dispatch`; GPU work runs on the local 4090 per ADR-0004): ingests
+  the uploaded harness + judge + fertility report artifacts, posts summary comment, ingests to API. Contains
   the **regression gate**: fine-tuned must beat base by ≥ +5 pts on the domain eval and stay
   within −1 pt on ArabicMMLU (no catastrophic forgetting) — else red.
 - **release.yml** (tag): helm package + push, tofu plan (manual apply gate), GitHub Release with
@@ -754,7 +770,7 @@ handler. Inventory `edge.yml` holds per-device vars (board model, power mode, mo
 - [ ] `SANAD_MODE=sovereign` sets all offline env vars; boot fails loudly if a model dir is missing (no silent hub fetch)
 - [ ] `sovereign-guard` NetworkPolicies applied; egress-zero alert green for 24 h before demo
 - [ ] All images: Trivy high/critical = 0 (or documented waiver), SBOM attached, cosign-signed; Harbor policy blocks unsigned
-- [ ] Model artifacts sha256-verified on every sync (Ansible + initContainer)
+- [ ] Model artifacts sha256-verified on every sync (edge `mc mirror` + initContainer)
 - [ ] License matrix in `MANIFEST.yaml` + model `manifest.json` consistent with prime directive 2
 - [ ] No third-party CDN/fonts/analytics in `web/dist` (`just verify-no-cdn`)
 - [ ] Secrets only via SOPS+age; `git secrets`-style pre-commit hook active
@@ -768,13 +784,13 @@ handler. Inventory `edge.yml` holds per-device vars (board model, power mode, mo
 | Layer | Tool | Gate |
 |---|---|---|
 | ml/ | ruff + mypy + pytest | schema validators + manifest gen covered; `data-gate` license check |
-| Training | MLflow + budget log | peak VRAM < 16 GB; cost < $50/cycle logged |
+| Training | MLflow + budget log | peak VRAM < 16 GB; cost logged, $0 target (free-tier compute, ADR-0003) |
 | Quantization | `ppl_gate.py` | ΔPPL ≤ 3% (AWQ) / 5% (GGUF); ArabicMMLU drop ≤ 1.0 pt |
 | Eval | eval.yml regression gate | domain ≥ base +5 pts; ArabicMMLU ≥ base −1 pt; judge claims require human-κ present |
 | api | pytest cov ≥ 80% + schemathesis | OpenAPI fuzz clean; SSE proxy chunk-integrity test |
 | web | biome + tsc + vitest + Playwright | RTL+LTR snapshots; logical-properties grep; Lighthouse ≥ 90 / ≥ 75 (hero) |
 | Images | Trivy + Syft + cosign | 0 high/critical; signed |
-| Infra | tofu validate + tflint + `helm lint` + ansible-lint | plan reviewed on PR |
+| Infra | tofu validate + tflint + `helm lint` | plan reviewed on PR |
 
 ## 12. Command surface (`justfile` — keep this the only entry point)
 
@@ -786,9 +802,9 @@ api-types:        # export OpenAPI → hey-api generate → src/lib/api/
 data:             # ingest → normalize → langid → dedup → validate → MANIFEST.yaml
 data-gate:        # license/provenance CI gate
 train cfg="configs/train/qwen3-4b-qlora-dora.yaml":   # uv run train/sft.py --config {{cfg}}
-merge:            # adapters → merged-bf16 + manifest
-quant-awq:        # llm-compressor recipe
-quant-gguf:       # convert → imatrix → Q4_K_M
+merge cfg="configs/train/qwen3-4b-qlora-dora.yaml":   # adapters → merged-bf16 + manifest
+quant-awq model="out/merged-bf16":    # llm-compressor recipe
+quant-gguf model="out/merged-bf16":   # convert → imatrix → Q4_K_M
 ppl-gate model:   # quality gate
 eval model:       # run_lm_eval.sh {{model}}
 judge run_id:     # 3C3H multi-judge + agreement.py
@@ -803,9 +819,17 @@ verify-no-cdn:    # grep dist/ for external origins
 # ── infra ──────────────────────────────────────────────
 tofu-plan env:    # cd infra/terraform/envs/{{env}} && tofu plan
 tofu-apply env:
-edge-provision:   # ansible-playbook playbooks/edge.yml
 helm-deploy env:  # helmfile-style apply of charts with sops-decrypted values
-bench-jetson:     # runs ops/runbooks/jetson-bench.md steps, writes evals/reports/edge_bench.json
+bench-edge:       # local llama.cpp bench (ops/runbooks/edge-bench.md) → evals/reports/edge_bench.json
+```
+
+**Running a single test** (faster inner loop than `just check`):
+
+```bash
+cd ml && uv run pytest tests/test_gates.py::test_case -q        # ml workspace
+cd apps/api && uv run pytest tests/test_chat_sse.py -k name -q  # api workspace
+cd apps/web && pnpm exec vitest --run tests/bidi.test.ts        # web unit (vitest; `pnpm test` = watch mode)
+cd apps/web && pnpm exec playwright test e2e/rtl-ltr.spec.ts    # e2e (builds + serves preview itself)
 ```
 
 ## 13. Implementation roadmap (phases = PR milestones; each has acceptance criteria)
@@ -818,12 +842,13 @@ green; RTL snapshot passes.
 dedup/langid, MANIFEST + data-gate. ✓ = manifest shows provenance split; gate blocks a planted
 non-commercial record.
 
-**P2 · Train + merge (wk 3–4).** sft.py on rented 4090 (tofu `gpu_train` up/down), MLflow run,
-merged-bf16 + manifest. ✓ = VRAM < 16 GB; cost logged < $50; val loss curve archived.
+**P2 · Train + merge (wk 3–4).** sft.py on the local RTX 4090 (ADR-0004; bf16, canonical
+config unchanged; Kaggle/Colab = fallback only), MLflow run, merged-bf16 + manifest.
+✓ = VRAM < 16 GB; cost logged = $0; val loss curve archived.
 
-**P3 · Quantize + serve (wk 4–5).** AWQ + GGUF (+imatrix), ppl-gate, vLLM chart on k3s (or
-compose gpu), Jetson provisioned via Ansible, `bench-jetson` numbers recorded. ✓ = both gates
-pass; edge tok/s + watts in a report.
+**P3 · Quantize + serve (wk 4–5).** AWQ + GGUF (+imatrix), ppl-gate, vLLM chart on k3s/k3d (or
+compose gpu), CPU edge via compose `edge` profile, `bench-edge` numbers recorded. ✓ = both
+gates pass; edge tok/s (+ watts where RAPL readable) in a report labeled `x86-local`.
 
 **P4 · Eval harness (wk 5–6).** lm-eval across model matrix, domain eval v1 (300 items frozen),
 3C3H judges + agreement + 50-item human validation. ✓ = regression gate wired; human-κ reported;
@@ -841,9 +866,9 @@ blog/LinkedIn post, paper draft (`docs/paper/`, scope: reproducible recipe + eva
 fertility/edge measurements — **no frontier-beating claims**), CV bullets with real numbers.
 
 **Decision thresholds (from the research blueprint — honor them):** SLM fails to match the large
-model in-domain → narrow the domain or add curated data before touching model size · Jetson
-latency unacceptable → Orin NX/AGX or shorter context; keep vLLM+AWQ as the server story ·
-commercial licensing hard-requirement → Apache-2.0 matrix only (already default).
+model in-domain → narrow the domain or add curated data before touching model size · CPU-edge
+latency unacceptable → smaller quant (Q4_K_S/IQ4_XS) or shorter context; keep vLLM+AWQ as the
+server story · commercial licensing hard-requirement → Apache-2.0 matrix only (already default).
 
 ## 14. Working agreements for Claude Code
 

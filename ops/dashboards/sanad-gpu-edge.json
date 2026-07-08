@@ -31,14 +31,14 @@
     },
     {
       "id": 4,
-      "title": "Jetson watts (tegrastats)",
+      "title": "Edge watts",
       "type": "timeseries",
       "gridPos": { "x": 8, "y": 8, "w": 8, "h": 8 },
       "targets": [{ "expr": "sanad_edge_watts", "legendFormat": "{{source}}" }]
     },
     {
       "id": 5,
-      "title": "Jetson tok/s · temp",
+      "title": "Edge tok/s · temp",
       "type": "timeseries",
       "gridPos": { "x": 16, "y": 8, "w": 8, "h": 8 },
       "targets": [

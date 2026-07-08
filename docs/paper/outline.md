@@ -25,7 +25,7 @@ measurements. **No frontier-beating claims.** Every number cites a report hash.
 6. **Results** — benchmark matrix (all re-measured); in-domain delta vs base and vs one
    large generalist; forgetting check (ArabicMMLU drift ≤1 pt).
 7. **Fertility & edge economics** — tokens/word across five tokenizers on three fixed
-   corpora; measured Orin tok/s + watts; $/1M tokens from the published cost model.
+   corpora; measured CPU-edge (x86-local) tok/s + watts; $/1M tokens from the published cost model.
 8. **Limitations** — MSA-only (no dialects), single domain, judge-pool size, raster-level
    contamination risk in public benchmarks.
 9. **Reproducibility statement** — seeds, pinned revs (harness commit, base model sha,

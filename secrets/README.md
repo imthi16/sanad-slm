@@ -15,4 +15,3 @@ Expected files (create per environment, never commit plaintext):
 
 - `dev.sops.yaml` — compose-stack overrides (API service token, MinIO root creds)
 - `prod.sops.yaml` — k3s kubeconfig, Harbor robot token, API service tokens, Grafana admin
-- `edge.sops.yaml` — Ansible vault-equivalent per-device secrets
