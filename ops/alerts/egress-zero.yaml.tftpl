@@ -1,0 +1,27 @@
+# Terraform-templated copy of the egress-zero PrometheusRule installed by the observability
+# module (§9.1) — kept alive even if the app charts are torn down. Canonical source of truth
+# for the rule shape is infra/helm/charts/sovereign-guard/templates/prometheusrule.yaml.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sanad-sovereign-egress-standalone
+  namespace: ${monitoring_namespace}
+  labels:
+    release: kps
+spec:
+  groups:
+    - name: sanad.sovereign.standalone
+      rules:
+        - alert: SanadSovereignEgress
+          expr: >
+            sum(rate(container_network_transmit_bytes_total{namespace="${namespace}",pod!~"sanad-web.*"}[5m]))
+            -
+            sum(rate(container_network_receive_bytes_total{namespace="${namespace}"}[5m]))
+            > 0
+          for: 10m
+          labels:
+            severity: critical
+            sanad: sovereignty
+          annotations:
+            summary: "Non-cluster egress detected from sovereign namespace ${namespace}"
+            description: "Egress-zero promise broken (CLAUDE.md prime directive 1)."

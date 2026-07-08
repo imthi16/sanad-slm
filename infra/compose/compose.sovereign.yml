@@ -1,0 +1,54 @@
+# Air-gapped demo overlay (§9.4): one box, Wi-Fi off. Usage:
+#   docker compose -f docker-compose.yml -f compose.sovereign.yml --profile gpu up -d
+# All images must be pre-pulled/side-loaded (Harbor or `docker save|load`) — nothing pulls.
+services:
+  api:
+    environment:
+      SANAD_MODE: sovereign
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      HF_DATASETS_OFFLINE: "1"
+      NO_PROXY: "*"
+    networks: [sanad-internal]
+
+  web:
+    build:
+      context: ../../apps/web
+      args: { SANAD_MODE: sovereign }
+    networks: [sanad-internal]
+    ports: ["8081:8080"] # the single LAN-facing door for the demo
+
+  vllm:
+    environment:
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    networks: [sanad-internal]
+
+  llamacpp:
+    networks: [sanad-internal]
+
+  postgres:
+    networks: [sanad-internal]
+    ports: [] # no host exposure in sovereign demo
+
+  redis:
+    networks: [sanad-internal]
+    ports: []
+
+  minio:
+    networks: [sanad-internal]
+
+  mlflow:
+    networks: [sanad-internal]
+
+  prometheus:
+    networks: [sanad-internal]
+
+  grafana:
+    networks: [sanad-internal]
+
+networks:
+  # internal: true blocks ALL outbound routing at the docker network layer —
+  # the compose equivalent of the k8s default-deny egress policy
+  sanad-internal:
+    internal: true

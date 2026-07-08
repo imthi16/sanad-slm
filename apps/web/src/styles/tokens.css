@@ -1,0 +1,24 @@
+@import "tailwindcss";
+@theme {
+  /* Palette — "Night Dune": deep blue-slate canvas, sand text, brass + gulf-teal instruments */
+  --color-dune-950: #0e1420; /* app canvas */
+  --color-dune-900: #141c2b; /* raised surfaces */
+  --color-dune-700: #26324a; /* borders, grid lines */
+  --color-sand-100: #ede4d3; /* primary text */
+  --color-sand-400: #b9ac93; /* secondary text */
+  --color-brass-400: #c9a227; /* accent: metrics, active states — use sparingly */
+  --color-teal-400: #1fa79b; /* accent 2: Arabic-token color, success */
+  --color-claret-500: #a6453f; /* errors/alerts only */
+  /* Type — dual-script pairing is the identity */
+  --font-display: "Space Grotesk", sans-serif; /* Latin display */
+  --font-body: "Inter Variable", sans-serif; /* Latin body */
+  --font-ar: "IBM Plex Sans Arabic", sans-serif; /* Arabic body/UI */
+  --font-ar-display: "Amiri", serif; /* Arabic display accents (hero words) */
+  --radius-panel: 0.75rem;
+  --shadow-panel: 0 1px 0 0 var(--color-dune-700), 0 12px 32px -16px rgb(0 0 0 / 0.6);
+  /* Motion — one easing, three durations; reduced-motion collapses all of it (§8.2) */
+  --ease-sanad: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration-base: 300ms;
+  --duration-slow: 600ms;
+}

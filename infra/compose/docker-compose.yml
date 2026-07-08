@@ -1,0 +1,149 @@
+# Dev & demo stack (§9.4). Profiles: gpu → vLLM · edge → x86 llama.cpp · trace → langfuse.
+# `just dev` starts the core; overlays: compose.sovereign.yml (air-gapped), compose.edge.yml.
+name: sanad
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sanad}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sanad}
+      POSTGRES_DB: ${POSTGRES_DB:-sanad}
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sanad}"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-sanad}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-sanad-secret}
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio: { condition: service_healthy }
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-sanad} ${MINIO_ROOT_PASSWORD:-sanad-secret} &&
+      mc mb -p local/sanad-models local/sanad-tfstate local/mlflow || true"
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.20.3
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri postgresql://${POSTGRES_USER:-sanad}:${POSTGRES_PASSWORD:-sanad}@postgres:5432/${POSTGRES_DB:-sanad}
+      --artifacts-destination s3://mlflow
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-sanad}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-sanad-secret}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+    ports: ["5000:5000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+
+  api:
+    build: ../../apps/api
+    environment:
+      SANAD_MODE: ${SANAD_MODE:-dev}
+      SANAD_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sanad}:${POSTGRES_PASSWORD:-sanad}@postgres:5432/${POSTGRES_DB:-sanad}
+      SANAD_REDIS_URL: redis://redis:6379/0
+      SANAD_VLLM_BASE_URL: http://vllm:8000/v1
+      SANAD_LLAMACPP_BASE_URL: http://llamacpp:8080/v1
+      SANAD_REGISTRY_S3_ENDPOINT: http://minio:9000
+      SANAD_SERVICE_TOKEN: ${SANAD_SERVICE_TOKEN:-dev-token}
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  web:
+    build:
+      context: ../../apps/web
+      args: { SANAD_MODE: "${SANAD_MODE:-dev}" }
+    ports: ["8081:8080"]
+    depends_on: [api]
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-sanad}
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ../../ops/dashboards:/var/lib/grafana/dashboards:ro
+      - ./grafana-provisioning:/etc/grafana/provisioning:ro
+    ports: ["3000:3000"]
+    depends_on: [prometheus]
+
+  # ── profile: gpu ─────────────────────────────────────
+  vllm:
+    profiles: [gpu]
+    build: ../../serving/vllm
+    environment:
+      SANAD_MODEL_DIR: /models/sanad-qwen3-4b-bank/awq-w4a16
+      SANAD_SERVED_NAME: sanad-bank-awq
+    volumes:
+      - ${SANAD_MODELS_DIR:-./models}:/models:ro
+    ports: ["8001:8000"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # ── profile: edge (x86 llama.cpp for laptop demos) ───
+  llamacpp:
+    profiles: [edge]
+    image: ghcr.io/ggml-org/llama.cpp:server
+    command: >
+      -m /models/sanad-Q4_K_M.gguf -c 4096 --parallel 2
+      --host 0.0.0.0 --port 8080 --metrics
+    volumes:
+      - ${SANAD_MODELS_DIR:-./models}:/models:ro
+    ports: ["8080:8080"]
+
+  # ── profile: trace ───────────────────────────────────
+  langfuse:
+    profiles: [trace]
+    image: langfuse/langfuse:3
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sanad}:${POSTGRES_PASSWORD:-sanad}@postgres:5432/langfuse
+      NEXTAUTH_SECRET: ${LANGFUSE_SECRET:-dev-secret-change-me}
+      NEXTAUTH_URL: http://localhost:3001
+      SALT: ${LANGFUSE_SALT:-dev-salt-change-me}
+      TELEMETRY_ENABLED: "false"
+    ports: ["3001:3000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  miniodata:

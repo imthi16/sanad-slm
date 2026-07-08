@@ -1,0 +1,21 @@
+# llm-compressor AWQ W4A16 recipe → compressed-tensors checkpoint (vLLM loads natively).
+# Calibration set MUST be ≥40% Arabic — English-only calibration silently degrades AR (§5.3).
+recipe:
+  quant_stage:
+    quant_modifiers:
+      AWQModifier:
+        ignore: ["lm_head"]
+        config_groups:
+          group_0:
+            targets: ["Linear"]
+            weights:
+              num_bits: 4
+              type: int
+              symmetric: true
+              strategy: group
+              group_size: 128
+calibration:
+  num_samples: 512
+  max_seq_len: 2048
+  min_arabic_ratio: 0.40 # enforced by quantize/awq.py before running
+output_dir: out/awq-w4a16

@@ -1,0 +1,18 @@
+# OALL-v2 native-task selection run through lm-evaluation-harness (pinned rev in run_lm_eval.sh).
+# Native Arabic tasks only — never machine-translated sets presented as native (prime directive 3).
+tasks:
+  - arabicmmlu
+  - aratrust
+  - madinahqa
+  - alrage
+num_fewshot: 0
+batch_size: auto
+log_samples: true
+# The identical command runs for every model in the comparator matrix (§5.2):
+models:
+  - Qwen/Qwen3-4B-Instruct-2507 # base (pin rev)
+  - out/merged-bf16 # fine-tuned
+  - ALLaM-AI/ALLaM-7B-Instruct-preview
+  - inceptionai/jais-family-6p7b-chat
+  - tiiuae/Falcon-H1-3B-Instruct # benchmark comparator ONLY (Falcon-LLM License)
+  - tiiuae/Falcon-H1-7B-Instruct # benchmark comparator ONLY

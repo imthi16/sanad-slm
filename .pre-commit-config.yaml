@@ -1,0 +1,50 @@
+# Pre-commit hooks — mirror of the fast half of `just check`.
+# `pre-commit install` is run by `just setup`.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ["--maxkb=2048"] # weights/datasets never enter git (prime directive 6)
+      - id: check-merge-conflict
+      - id: check-yaml
+        exclude: ^infra/helm/charts/.*/templates/
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: detect-private-key
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.0
+    hooks:
+      - id: gitleaks # secrets are SOPS-encrypted files only
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.0
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+        files: ^(ml|apps/api)/
+      - id: ruff-format
+        files: ^(ml|apps/api)/
+
+  - repo: local
+    hooks:
+      - id: biome
+        name: biome check (apps/web)
+        entry: bash -c 'cd apps/web && pnpm exec biome check --write --no-errors-on-unmatched .'
+        language: system
+        files: ^apps/web/
+        pass_filenames: false
+      - id: bilingual-strings
+        name: en/ar i18n keys in sync
+        entry: bash -c 'cd apps/web && node scripts/check-i18n-sync.mjs'
+        language: system
+        files: ^apps/web/src/i18n/
+        pass_filenames: false
+      - id: logical-properties
+        name: forbid physical direction classes (RTL safety)
+        entry: bash -c '! grep -rnE "(\\bml-|\\bmr-|\\bpl-|\\bpr-|text-left|text-right)" apps/web/src --include="*.tsx" --include="*.ts" --include="*.css"'
+        language: system
+        files: ^apps/web/src/
+        pass_filenames: false

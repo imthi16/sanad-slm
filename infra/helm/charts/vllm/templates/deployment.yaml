@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels: &labels
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  replicas: 1 # one model per pod (§6.1)
+  strategy:
+    type: Recreate # single GPU — never two pods contending during rollout
+  selector:
+    matchLabels: *labels
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      runtimeClassName: nvidia
+      nodeSelector:
+        sanad.ai/gpu: "true"
+      initContainers:
+        # model dir is a read-only PVC synced from MinIO (§6.1); sha256 verified by manifest
+        - name: model-sync
+          image: minio/mc:latest
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              mc alias set sanad {{ .Values.minio.endpoint }} "$ACCESS_KEY" "$SECRET_KEY" &&
+              mc mirror --overwrite
+              sanad/{{ .Values.minio.bucket }}/{{ .Values.model.name }}/{{ .Values.model.version }}/{{ .Values.model.quantDir }}/
+              /models/{{ .Values.model.name }}/{{ .Values.model.quantDir }}/
+          env:
+            - name: ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: {{ .Values.minio.existingSecret }}, key: accessKey } }
+            - name: SECRET_KEY
+              valueFrom: { secretKeyRef: { name: {{ .Values.minio.existingSecret }}, key: secretKey } }
+          volumeMounts:
+            - name: models
+              mountPath: /models
+      containers:
+        - name: vllm
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: SANAD_MODEL_DIR
+              value: /models/{{ .Values.model.name }}/{{ .Values.model.quantDir }}
+            - name: SANAD_SERVED_NAME
+              value: {{ .Values.model.servedName | quote }}
+            - name: SANAD_MAX_MODEL_LEN
+              value: {{ .Values.model.maxModelLen | quote }}
+            - name: SANAD_GPU_MEM_UTIL
+              value: {{ .Values.model.gpuMemUtil | quote }}
+          ports:
+            - containerPort: 8000
+              name: http
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 120 # model load takes a while
+            periodSeconds: 15
+            failureThreshold: 6
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 30
+          resources: {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-models
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-models
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ .Values.storage.storageClassName }}
+  resources:
+    requests:
+      storage: {{ .Values.storage.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  selector:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vllm
+      app.kubernetes.io/instance: {{ .Release.Name }}

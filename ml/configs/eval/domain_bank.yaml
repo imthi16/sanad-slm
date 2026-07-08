@@ -1,0 +1,15 @@
+# Domain eval: sanad_bank_eval_v1.jsonl — 300 own-authored held-out items (§5.4b).
+# 150 AR / 120 EN / 30 code-switch. sha256 committed; NEVER enters training (contamination hygiene).
+dataset: evals/domain/sanad_bank_eval_v1.jsonl
+expected_sha256: "<frozen-at-P4>" # freeze when the 300 items are complete
+splits:
+  ar: 150
+  en: 120
+  mixed: 30
+task_types:
+  extraction: { metrics: [exact_match, f1] }
+  classification: { metrics: [accuracy, macro_f1] }
+  grounded_qa: { metrics: [judged_3c3h] }
+generation:
+  max_tokens: 512
+  temperature: 0.0 # deterministic for extraction/classification

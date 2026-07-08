@@ -1,0 +1,98 @@
+@import "./tokens.css";
+
+/* Self-hosted fonts only — no CDN, ever (sovereign gate `just verify-no-cdn`). */
+@import "@fontsource/space-grotesk/latin-400.css";
+@import "@fontsource/space-grotesk/latin-700.css";
+@import "@fontsource-variable/inter/index.css";
+@import "@fontsource/ibm-plex-sans-arabic/arabic-400.css";
+@import "@fontsource/ibm-plex-sans-arabic/arabic-500.css";
+@import "@fontsource/ibm-plex-sans-arabic/arabic-700.css";
+@import "@fontsource/amiri/arabic-400.css";
+@import "@fontsource/amiri/arabic-700.css";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-dune-950);
+  color: var(--color-sand-100);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Arabic is a first-class citizen: :lang(ar) swaps family and breathes (§8.2). */
+:lang(ar) {
+  font-family: var(--font-ar);
+  line-height: 1.8;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+:lang(ar) .font-display,
+.font-display:lang(ar) {
+  font-family: var(--font-ar-display);
+}
+
+/* Fluid display type: 2.2–4.4rem (§8.2). */
+.text-display {
+  font-size: clamp(2.2rem, 1.2rem + 3.5vw, 4.4rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.text-display:lang(ar) {
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+/* Brass only on live numbers, active nav, token counter — never large fills. */
+.metric {
+  color: var(--color-brass-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel {
+  background: var(--color-dune-900);
+  border: 1px solid var(--color-dune-700);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+/* Mixed-script inline spans stay isolated so bidi never reorders neighbours (§8.6). */
+.bidi-isolate {
+  unicode-bidi: isolate;
+}
+
+/* Visible focus everywhere (§8.7 a11y). */
+:focus-visible {
+  outline: 2px solid var(--color-brass-400);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Skip link for the canvas (§8.7). */
+.skip-link {
+  position: absolute;
+  inset-block-start: -100%;
+  inset-inline-start: 0.5rem;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  background: var(--color-dune-900);
+  transition: inset-block-start var(--duration-fast) var(--ease-sanad);
+}
+.skip-link:focus {
+  inset-block-start: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

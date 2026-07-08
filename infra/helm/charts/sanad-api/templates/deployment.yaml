@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels: &labels
+    app.kubernetes.io/name: sanad-api
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  {{- if not .Values.hpa.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels: *labels
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: SANAD_MODE
+              value: {{ .Values.mode | quote }}
+            # offline enforcement (§4) — belt & braces alongside the NetworkPolicies
+            {{- if ne .Values.mode "dev" }}
+            - name: HF_HUB_OFFLINE
+              value: "1"
+            - name: TRANSFORMERS_OFFLINE
+              value: "1"
+            - name: HF_DATASETS_OFFLINE
+              value: "1"
+            {{- end }}
+            - name: SANAD_VLLM_BASE_URL
+              value: {{ .Values.env.vllmBaseUrl | quote }}
+            - name: SANAD_LLAMACPP_BASE_URL
+              value: {{ .Values.env.llamacppBaseUrl | quote }}
+            - name: SANAD_REDIS_URL
+              value: {{ .Values.env.redisUrl | quote }}
+            - name: SANAD_REGISTRY_S3_ENDPOINT
+              value: {{ .Values.env.registryS3Endpoint | quote }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.existingSecret }}
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources: {{- toYaml .Values.resources | nindent 12 }}

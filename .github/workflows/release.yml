@@ -1,0 +1,72 @@
+# Tag release — helm package + push, tofu plan (manual apply gate), GitHub Release
+# with manifest hashes (CLAUDE.md §9.5).
+name: release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: package charts
+        run: |
+          mkdir -p dist/charts
+          for c in infra/helm/charts/*/; do
+            helm package "$c" --version "${GITHUB_REF_NAME#v}" -d dist/charts
+          done
+      - name: push charts to Harbor OCI
+        run: |
+          echo "${{ secrets.HARBOR_ROBOT_TOKEN }}" | helm registry login "${{ vars.HARBOR_HOST }}" \
+            --username "${{ secrets.HARBOR_ROBOT_USER }}" --password-stdin
+          for pkg in dist/charts/*.tgz; do
+            helm push "$pkg" "oci://${{ vars.HARBOR_HOST }}/sanad/charts"
+          done
+      - uses: actions/upload-artifact@v4
+        with: { name: helm-charts, path: dist/charts }
+
+  tofu-plan:
+    # plan only — apply stays a manual gate behind the `prod` environment approval
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+        with: { tofu_version: "1.8.5" }
+      - name: plan prod
+        working-directory: infra/terraform/envs/prod
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.MINIO_ACCESS_KEY }} # MinIO S3 state backend
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+        run: |
+          tofu init
+          tofu plan -out=prod.tfplan
+      - uses: actions/upload-artifact@v4
+        with: { name: prod-tfplan, path: infra/terraform/envs/prod/prod.tfplan }
+
+  github-release:
+    needs: [helm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: collect manifest hashes
+        run: |
+          {
+            echo "## Manifest hashes"
+            echo '```'
+            [ -f ml/data/MANIFEST.yaml ] && sha256sum ml/data/MANIFEST.yaml
+            find ml/configs -type f -name '*.yaml' -exec sha256sum {} \;
+            [ -f ml/evals/domain/sanad_bank_eval_v1.jsonl ] && sha256sum ml/evals/domain/sanad_bank_eval_v1.jsonl
+            echo '```'
+          } > release-notes.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes.md
+          generate_release_notes: true

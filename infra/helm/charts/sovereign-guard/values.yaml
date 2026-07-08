@@ -1,0 +1,14 @@
+namespace: sanad
+
+# CIDRs considered "inside" — egress anywhere else is a violation
+clusterCidrs:
+  - 10.42.0.0/16 # k3s pod CIDR
+  - 10.43.0.0/16 # k3s service CIDR
+  - 192.168.10.0/24 # on-prem LAN (MinIO/Harbor/edge)
+
+alert:
+  enabled: true
+  forDuration: 10m
+  # bytes/s of transmit-over-receive tolerated before firing; 0 = strict (spec default).
+  # Tune after 24 h of baseline observation on the actual CNI (see chart comment).
+  egressCeilingBytesPerSec: 0

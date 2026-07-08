@@ -1,0 +1,52 @@
+{{- if .Values.alert.enabled }}
+# The signature egress-zero alert (§9.3): this alert FIRING = broken sovereignty promise.
+# Checklist §10 requires it green for 24 h before any demo.
+#
+# Two layers:
+#  1. SanadSovereignEgress — spec expression: transmit-rate from sovereign pods (excluding
+#     sanad-web, which serves the dashboard to the LAN) above the namespace's expected
+#     ceiling. With sovereign-guard's default-deny egress in place, in-cluster traffic is the
+#     only legitimate traffic; the threshold trips on sustained overflow beyond it.
+#     NOTE: per-destination "non-cluster CIDR" attribution needs a flow-aware CNI (cilium
+#     hubble_flows_*). On stock k3s/flannel this rule uses the conservative superset —
+#     tune `egressCeilingBytesPerSec` after 24 h of baseline observation, and treat the
+#     NetworkPolicies (not this alert) as the enforcement layer.
+#  2. SanadSovereignGuardAbsent — the policies themselves must exist.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sanad-sovereign-egress
+  namespace: {{ .Values.namespace }}
+  labels:
+    release: kps # picked up by kube-prometheus-stack
+spec:
+  groups:
+    - name: sanad.sovereign
+      rules:
+        - alert: SanadSovereignEgress
+          expr: >
+            sum(rate(container_network_transmit_bytes_total{namespace="{{ .Values.namespace }}",pod!~"sanad-web.*"}[5m]))
+            -
+            sum(rate(container_network_receive_bytes_total{namespace="{{ .Values.namespace }}"}[5m]))
+            > {{ .Values.alert.egressCeilingBytesPerSec | default 0 }}
+          for: {{ .Values.alert.forDuration }}
+          labels:
+            severity: critical
+            sanad: sovereignty
+          annotations:
+            summary: "Egress overflow from sovereign namespace {{ .Values.namespace }}"
+            description: >
+              Transmit from sovereign pods exceeded in-namespace receive by more than the
+              configured ceiling for {{ .Values.alert.forDuration }} — bytes are leaving the
+              namespace boundary. Broken promise (CLAUDE.md prime directive 1). Find the pod:
+              topk(5, rate(container_network_transmit_bytes_total{namespace="{{ .Values.namespace }}"}[5m]))
+        - alert: SanadSovereignGuardAbsent
+          expr: absent(kube_networkpolicy_labels{namespace="{{ .Values.namespace }}"})
+          for: 15m
+          labels:
+            severity: critical
+            sanad: sovereignty
+          annotations:
+            summary: "NetworkPolicies missing in sovereign namespace"
+            description: "sovereign-guard policies are not present — egress is unconstrained."
+{{- end }}

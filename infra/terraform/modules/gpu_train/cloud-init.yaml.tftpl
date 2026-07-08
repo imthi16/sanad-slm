@@ -1,0 +1,14 @@
+#cloud-config
+# gpu_train bootstrap: driver ships with the DLAMI; add uv + just, clone, sync (§9.1).
+package_update: true
+packages:
+  - git
+  - curl
+
+runcmd:
+  - curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+  - curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+  - git clone ${repo_url} /opt/sanad
+  - cd /opt/sanad/ml && uv sync --extra train --extra quant
+  - nvidia-smi || echo "WARNING - GPU not visible yet"
+  - echo "sanad train box ready - run: cd /opt/sanad && just train"

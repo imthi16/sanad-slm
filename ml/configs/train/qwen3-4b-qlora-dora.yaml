@@ -1,0 +1,35 @@
+# Canonical SFT config (CLAUDE.md §5.2). Any hyperparameter change = NEW file, never mutate.
+base_model: Qwen/Qwen3-4B-Instruct-2507 # Apache-2.0
+revision: "<pin-hf-commit-sha>" # REQUIRED before first train: pin exact HF commit sha
+seed: 3407
+max_seq_len: 4096
+load_in_4bit: true # NF4 (bitsandbytes)
+lora:
+  r: 16
+  alpha: 16
+  dropout: 0.0
+  use_dora: true
+  target_modules: all-linear
+train:
+  epochs: 3
+  lr: 2.0e-4
+  scheduler: cosine
+  warmup_ratio: 0.03
+  per_device_batch: 4
+  grad_accum: 4 # effective 16
+  packing: true
+  bf16: true
+  optim: adamw_8bit
+  neftune_noise_alpha: 5 # cheap robustness bump; ablate once
+chat_template: qwen3 # train non-thinking mode: enable_thinking=false
+dataset: data/processed/train.jsonl
+eval_holdout: data/processed/val.jsonl
+logging:
+  mlflow_experiment: sanad-sft
+  log_steps: 10
+outputs:
+  adapter_dir: out/adapter
+  merged_dir: out/merged-bf16
+budget:
+  max_peak_vram_gb: 16 # acceptance: single 24 GB GPU, <16 GB peak
+  max_cost_usd: 50 # logged to MLflow per run

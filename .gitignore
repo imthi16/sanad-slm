@@ -1,0 +1,62 @@
+# ── secrets / env ──────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/**
+!secrets/*.sops.yaml
+!secrets/README.md
+
+# ── python ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# ── node / web ─────────────────────────────────────────
+node_modules/
+apps/web/dist/
+apps/web/dev-dist/
+apps/web/playwright-report/
+apps/web/test-results/
+apps/web/.vite/
+
+# ── ml artifacts (never commit weights or raw data) ────
+ml/out/
+ml/data/raw/**
+ml/data/processed/**
+!ml/data/raw/.gitkeep
+!ml/data/processed/.gitkeep
+ml/evals/reports/**
+!ml/evals/reports/.gitkeep
+!ml/evals/reports/cost_model.md
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+imatrix.dat
+mlruns/
+mlartifacts/
+
+# ── infra ──────────────────────────────────────────────
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+.terraform.lock.hcl
+
+# ── misc ───────────────────────────────────────────────
+.DS_Store
+*.log
+.idea/
+.vscode/

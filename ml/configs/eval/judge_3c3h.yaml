@@ -1,0 +1,35 @@
+# 3C3H multi-judge harness config (§5.4c).
+# Correctness is a binary gate (fail → 0); else mean of Completeness, Conciseness,
+# Helpfulness, Honesty, Harmlessness (each 1–5), reported per-dimension.
+rubrics:
+  ar: evals/judge/rubric_ar.md
+  en: evals/judge/rubric_en.md
+
+# Judge pool rule: NEVER a judge from the tested model's family (self-preference bias).
+# For Qwen3-4B under test → sovereign judges below, served locally via vLLM.
+judges:
+  - name: falcon-h1-7b
+    base_url: http://vllm-judge-falcon:8000/v1
+    model: Falcon-H1-7B-Instruct
+    sovereign: true
+  - name: allam-7b
+    base_url: http://vllm-judge-allam:8000/v1
+    model: ALLaM-7B-Instruct-preview
+    sovereign: true
+  # dev mode ONLY — calibration judge; scores stored with sovereign=false and
+  # excluded from headline numbers (prime directive 5).
+  - name: frontier-api-calibration
+    base_url: ${SANAD_DEV_JUDGE_URL}
+    model: ${SANAD_DEV_JUDGE_MODEL}
+    sovereign: false
+    dev_only: true
+
+scoring:
+  dimensions: [completeness, conciseness, helpfulness, honesty, harmlessness]
+  scale: [1, 5]
+  correctness_gate: true
+  temperature: 0.0
+
+disagreement:
+  human_queue_spread: 2 # per-item judge spread ≥ 2 → human queue
+  human_sample_size: 50 # stratified; protocol in human_validation.md

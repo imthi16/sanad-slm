@@ -1,0 +1,6 @@
+apiVersion: v2
+name: sovereign-guard
+description: Default-deny egress NetworkPolicies + the SanadSovereignEgress alert — the sovereignty enforcement layer (§9.3)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

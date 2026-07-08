@@ -1,0 +1,6 @@
+apiVersion: v2
+name: sanad-web
+description: SANAD React dashboard — nginx-served SPA with CSP self-only baked in
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

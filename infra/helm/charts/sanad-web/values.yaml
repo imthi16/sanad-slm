@@ -1,0 +1,15 @@
+image:
+  repository: harbor.sanad.local/sanad/sanad-web
+  tag: "" # set by CI/release
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+service:
+  port: 8080
+
+apiService: sanad-api:8000 # nginx /v1 proxy target inside the namespace
+
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits: { cpu: 250m, memory: 128Mi }

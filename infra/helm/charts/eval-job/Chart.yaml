@@ -1,0 +1,6 @@
+apiVersion: v2
+name: eval-job
+description: SANAD evaluation as a K8s Job (GPU) — harness + judges, then POST to the API
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

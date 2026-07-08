@@ -1,0 +1,158 @@
+# PR gate — mirrors `just check` plus container supply-chain steps (CLAUDE.md §9.5, §11).
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write # cosign keyless
+
+env:
+  UV_VERSION: "0.7.13"
+  PNPM_VERSION: "10"
+  NODE_VERSION: "22"
+
+jobs:
+  python-ml:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: ml } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { version: "${{ env.UV_VERSION }}" }
+      # base + dev group only — the train/quant CUDA extras never install on CI runners
+      - run: uv sync
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run mypy .
+      - run: uv run pytest -q
+      - name: data-gate (license/provenance)
+        run: uv run python data/scripts/manifest.py gate --profile commercial
+
+  python-api:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/api } }
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_USER: sanad, POSTGRES_PASSWORD: sanad, POSTGRES_DB: sanad }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sanad" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { version: "${{ env.UV_VERSION }}" }
+      - run: uv sync
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run mypy src
+      - run: uv run pytest -q --cov=src/sanad_api/services --cov=src/sanad_api/routers --cov-fail-under=80
+      - name: alembic up/down smoke
+        env:
+          SANAD_DATABASE_URL: postgresql+asyncpg://sanad:sanad@localhost:5432/sanad
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade base
+      - name: schemathesis (OpenAPI fuzz)
+        env:
+          SANAD_DATABASE_URL: postgresql+asyncpg://sanad:sanad@localhost:5432/sanad
+          SANAD_REDIS_URL: redis://localhost:6379/0
+        run: |
+          uv run uvicorn sanad_api.main:app --port 8000 &
+          sleep 3
+          uv run schemathesis run http://localhost:8000/openapi.json \
+            --checks all --exclude-checks ignored_auth --max-examples 25 || exit 1
+
+  web:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: "${{ env.PNPM_VERSION }}" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm, cache-dependency-path: apps/web/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec biome ci .
+      - run: pnpm exec tsc --noEmit
+      - name: bilingual string sync (en ⇄ ar)
+        run: node scripts/check-i18n-sync.mjs
+      - name: logical-properties grep (RTL safety)
+        run: |
+          ! grep -rnE '(\bml-|\bmr-|\bpl-|\bpr-|text-left|text-right)' src \
+            --include='*.tsx' --include='*.ts' --include='*.css'
+      - run: pnpm test -- --run
+      - run: pnpm build
+      - name: verify-no-cdn (sovereign gate)
+        run: node scripts/verify-no-cdn.mjs dist
+      - name: playwright smoke (LTR + RTL)
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm exec playwright test --project=chromium
+
+  infra-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v1
+        with: { tofu_version: "1.8.5" }
+      - name: tofu validate (all envs, offline)
+        run: |
+          for env in dev prod; do
+            (cd infra/terraform/envs/$env && tofu init -backend=false && tofu validate)
+          done
+      - uses: terraform-linters/setup-tflint@v4
+      - run: tflint --chdir=infra/terraform --recursive || true
+      - uses: azure/setup-helm@v4
+      - run: for c in infra/helm/charts/*/; do helm lint "$c"; done
+      - name: ansible-lint
+        run: pipx run ansible-lint infra/ansible || true
+
+  images:
+    # build → scan → SBOM → sign → push (push only on main)
+    if: github.event_name == 'push'
+    needs: [python-api, web]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { name: sanad-api, context: apps/api }
+          - { name: sanad-web, context: apps/web }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          tags: ${{ vars.HARBOR_HOST }}/sanad/${{ matrix.name }}:${{ github.sha }}
+          load: true
+      - name: trivy scan (0 high/critical)
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          image-ref: ${{ vars.HARBOR_HOST }}/sanad/${{ matrix.name }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+      - name: syft SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ vars.HARBOR_HOST }}/sanad/${{ matrix.name }}:${{ github.sha }}
+          artifact-name: ${{ matrix.name }}-sbom.spdx.json
+      - name: login harbor
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.HARBOR_HOST }}
+          username: ${{ secrets.HARBOR_ROBOT_USER }}
+          password: ${{ secrets.HARBOR_ROBOT_TOKEN }}
+      - name: push
+        run: docker push ${{ vars.HARBOR_HOST }}/sanad/${{ matrix.name }}:${{ github.sha }}
+      - name: cosign sign
+        uses: sigstore/cosign-installer@v3
+      - run: cosign sign --yes ${{ vars.HARBOR_HOST }}/sanad/${{ matrix.name }}:${{ github.sha }}
