@@ -5,7 +5,7 @@
 ### Sovereign Bilingual SLM Platform for Gulf Banking
 
 *A small language model, fine-tuned for under $50, running fully air-gapped —*
-*from a 24 GB GPU to a Jetson at the edge, in Arabic and English.*
+*from a 24 GB GPU to a CPU-only edge box, in Arabic and English.*
 
 [![License: Apache-2.0](https://img.shields.io/badge/code-Apache--2.0-C9A227?style=flat-square)](./LICENSE)
 [![Data: CC-BY-4.0](https://img.shields.io/badge/own%20data-CC--BY--4.0-C9A227?style=flat-square)](./ml/data/MANIFEST.yaml)
@@ -26,6 +26,7 @@
 - [The claim](#-the-claim)
 - [Why this exists](#-why-this-exists)
 - [Architecture](#-architecture)
+- [Screenshots](#-screenshots)
 - [The signature insight: tokenizer fertility](#-the-signature-insight-tokenizer-fertility)
 - [Three runtime modes](#-three-runtime-modes)
 - [Quickstart](#-quickstart)
@@ -47,7 +48,7 @@
 
 > A **~4B bilingual SLM**, fine-tuned for **< $50** on a **single 24 GB GPU**, can **match a
 > 5–10× larger general model** on a narrow UAE banking/compliance domain — while running
-> **fully air-gapped** on a sovereign GPU node (vLLM + AWQ) and on a **Jetson Orin** at the
+> **fully air-gapped** on a sovereign GPU node (vLLM + AWQ) and on **commodity CPU-only hardware** at the
 > edge (llama.cpp + GGUF), with a **reproducible Arabic/English evaluation harness** behind
 > every number.
 
@@ -87,9 +88,9 @@ claims. Sanad tests the opposite corner of the design space, end to end:
                  ▼
         ┌── MinIO model registry (s3://sanad-models/…, manifest.json, sha256, cosign) ──┐
         │                                                                               │
-   SOVEREIGN SERVER (k3s, on-prem)                                            EDGE (Jetson Orin, Ansible)
+   SOVEREIGN SERVER (k3s, on-prem)                                        EDGE (CPU-only x86 box)
    vLLM (AWQ, OpenAI-compatible) ◀──┐                                  llama-server (GGUF Q4_K_M)
-        │                           │ ModelRouter                               │  tegrastats exporter
+        │                           │ ModelRouter                               │  /metrics + RAPL
         ▼                           │                                           ▼
    sanad-api (FastAPI, SSE) ────────┴──────────── Postgres 17 · Redis · Langfuse(optional)
         │            ▲
@@ -103,6 +104,32 @@ One contract everywhere: the **OpenAI Chat Completions dialect**. The gateway's
 `ModelRouter` swaps base URLs between vLLM (GPU) and llama.cpp (edge); everything upstream —
 CLI tools, the dashboard, eval jobs — speaks the same API and receives an extra `x_sanad`
 block (TTFT, tok/s, detected language, sovereign flag) on every response.
+
+---
+
+## 🖥 Screenshots
+
+Live captures of the running platform (dev mode, base Qwen3-4B GGUF served by llama.cpp on
+the RTX 4090 — the fine-tuned model lands in P2).
+
+**The FertilityField hero** — a real bilingual banking sentence rendered as glyph particles,
+regrouping live into token clusters (teal = Arabic tokens, sand = English) as tokenizers are
+switched. Fully mirrored English ⇄ Arabic (RTL):
+
+| `/` — English (LTR) | `/` — Arabic (RTL) |
+|---|---|
+| ![Home in English: glyph-particle hero over the Night Dune palette](docs/screenshots/home-en.png) | ![الرئيسية بالعربية: واجهة RTL كاملة مع مجسم الرموز](docs/screenshots/home-ar.png) |
+
+**Bilingual chat** — grapheme-safe Arabic streaming with per-message TTFT/tok-s stats, and
+**Tokenizer Lab** — live tokens/word from `POST /v1/tokenize/fertility`:
+
+| `/chat` | `/tokenizer` (Arabic UI) |
+|---|---|
+| ![Bilingual chat: Arabic answer + English summary with TTFT and tok/s](docs/screenshots/chat-bilingual.png) | ![Tokenizer Lab in Arabic: per-tokenizer fertility table](docs/screenshots/tokenizer-lab.png) |
+
+**Edge telemetry** — the 3D edge board's heat glow follows live watts from the SSE stream:
+
+![Edge telemetry: 3D board with live gauges (tok/s, temperature, watts)](docs/screenshots/edge-telemetry.png)
 
 ---
 
@@ -122,7 +149,7 @@ it live at `POST /v1/tokenize/fertility`, and makes it *visible*:
 > any table.
 
 Pages: `/` hero + results strip · `/chat` bilingual streaming chat · `/evals` benchmark +
-judge dashboard · `/tokenizer` Fertility Lab · `/edge` live Jetson telemetry (3D board with
+judge dashboard · `/tokenizer` Fertility Lab · `/edge` live edge telemetry (3D board with
 heat glow driven by real watts) · `/registry` signed artifact lineage.
 
 ---
@@ -136,7 +163,7 @@ profiles, Helm values, the web build) derives from it:
 |---|---|---|---|---|
 | `dev` | laptop / cloud GPU | online allowed | vLLM or llama.cpp local | local + optional API judge (calibration only, flagged `sovereign=false`, **excluded from headline numbers**) |
 | `sovereign` | k3s on-prem | **zero egress** | vLLM (AWQ W4A16) | local only: Falcon-H1-7B + ALLaM-7B |
-| `edge` | Jetson Orin | zero egress | llama.cpp (GGUF Q4_K_M) | n/a — telemetry only |
+| `edge` | CPU-only x86 box | zero egress | llama.cpp (GGUF Q4_K_M) | n/a — telemetry only |
 
 ---
 
@@ -206,9 +233,8 @@ just edge-sim   # adds an x86 llama.cpp for laptop demos of the edge path
 | | `just check` | **everything a PR must pass locally** |
 | | `just verify-no-cdn` | sovereign gate: no fetchable external origins in `web/dist` |
 | infra | `just tofu-plan/apply <env>` | OpenTofu plan/apply (dev, prod) |
-| | `just edge-provision` | Ansible: full Jetson provisioning |
 | | `just helm-deploy <env>` | SOPS-decrypted values → all charts |
-| | `just bench-jetson <host>` | measured tok/s + watts → `edge_bench.json` |
+| | `just bench-edge` | measured CPU tok/s (+ RAPL watts) → `edge_bench.json` |
 
 ---
 
@@ -233,8 +259,8 @@ sanad/
 │   │                       evals/telemetry/tokenize/registry routers · Alembic
 │   └── web/                🎨 pnpm — React 19 + Vite + Tailwind v4 + R3F
 │       └── src/three/      FertilityField (hero) · PipelineOrbit · EdgeBoard
-├── serving/                vLLM container (sovereign GPU) · llama.cpp Jetson container
-├── infra/                  OpenTofu modules · Ansible jetson_edge role · 5 Helm charts
+├── serving/                vLLM container (sovereign GPU) · llama.cpp CPU edge launcher
+├── infra/                  OpenTofu modules (plan-only) · 5 Helm charts
 │   └── helm/charts/sovereign-guard/   default-deny egress + the egress-zero alert
 ├── ops/                    Grafana dashboards · Prometheus alerts · runbooks
 └── docs/                   ADRs · model-card template · paper outline
@@ -302,7 +328,7 @@ routed to a human queue.
 **No judge-based claim ships without the human↔judge κ.** The regression gate enforces it,
 and the API stores non-sovereign (dev-calibration) judge scores flagged and excluded.
 
-**Efficiency panel** — TTFT, tok/s, peak VRAM/RSS, watts (tegrastats on Jetson, DCGM on
+**Efficiency panel** — TTFT, tok/s, peak VRAM/RSS, watts (RAPL on the CPU edge, DCGM on
 GPU), and $/1M output tokens from a published cost model
 ([`ml/evals/reports/cost_model.md`](./ml/evals/reports/cost_model.md)) — never a bare number.
 
@@ -365,7 +391,7 @@ with chat content **not persisted** by default.
 | Domain eval (300 items) | *P4* | *P4* | *P4* | *P4* | *P4* |
 | ArabicMMLU | *P4* | *P4* | *P4* | *P4* | *P4* |
 | 3C3H (human-anchored) | — | *P4* | — | — | — |
-| Edge tok/s @ watts (Orin) | — | *P3* | — | — | — |
+| Edge tok/s @ watts (x86-local) | — | *P3* | — | — | — |
 | Training cost | — | *P2 (< $50 gate)* | — | — | — |
 
 \* Falcon-H1 is a benchmark comparator only (Falcon-LLM License — never in the shipping path).
@@ -390,7 +416,7 @@ Everything below runs in CI and locally via `just check` — **currently green e
 | quantization | `ppl_gate.py` | ΔPPL ≤ 3%/5% per language; ArabicMMLU drift ≤ 1 pt |
 | eval | regression gate | domain ≥ base+5 · ArabicMMLU ≥ base−1 · judge claims require human κ |
 | images | Trivy · Syft · cosign | 0 high/critical, SBOM attached, signed |
-| infra | tofu validate · tflint · helm lint · ansible-lint | plan reviewed on PR |
+| infra | tofu validate · tflint · helm lint | plan reviewed on PR |
 
 ---
 
@@ -401,7 +427,7 @@ Everything below runs in CI and locally via `just check` — **currently green e
 | **P0 · Skeleton** | monorepo, justfile, CI, compose stack, RTL app shell | ✅ scaffold complete, `just check` green — RTL snapshot run pending |
 | **P1 · Data** | CIDAR ingest, 300 banking pairs, dedup/langid, manifest gate | 🔜 tooling ready |
 | **P2 · Train + merge** | QLoRA on rented 4090, MLflow, < $50, < 16 GB VRAM | ⏳ |
-| **P3 · Quantize + serve** | AWQ + GGUF+imatrix, ppl-gate, vLLM chart, Jetson provisioning | ⏳ |
+| **P3 · Quantize + serve** | AWQ + GGUF+imatrix, ppl-gate, vLLM chart, CPU edge profile | ⏳ |
 | **P4 · Eval harness** | full matrix, domain eval frozen, judges + human validation | ⏳ |
 | **P5 · Full app** | chat SSE end-to-end, FertilityField live, all pages + scenes | ⏳ scenes & API built, wiring at P5 |
 | **P6 · Sovereign hardening** | egress-zero 24 h, cosign verify path, checklist green | ⏳ |
