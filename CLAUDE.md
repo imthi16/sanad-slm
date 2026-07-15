@@ -11,18 +11,16 @@ This file is the single source of truth for Claude Code and human contributors. 
 before writing code. When this file and a README disagree, this file wins. Update it via PR when
 architecture decisions change (and add an ADR in `docs/adr/`).
 
-> **⚠️ Current repository state (as of 2026-07-08): P0 scaffold implemented; `just check` GREEN.**
-> The full §2 tree exists (see ADR-0002 for in-spec implementation choices), lockfiles are
-> generated (`ml/uv.lock`, `apps/api/uv.lock`, `apps/web/pnpm-lock.yaml`), and `just check`
-> passes end-to-end: ruff+mypy+pytest (both Python workspaces), biome+tsc+vitest+i18n-sync
-> (web), data-gate, verify-no-cdn. Outstanding before P0 sign-off: (1) Playwright RTL/LTR
-> baselines — chromium is installed and `cd apps/web && pnpm e2e` runs all 12 RTL+LTR specs,
-> but they fail with "snapshot doesn't exist" because no baseline PNGs are committed yet; seal
-> them with `pnpm exec playwright test --update-snapshots`, visually review the generated
-> `e2e/rtl-ltr.spec.ts-snapshots/*.png`, commit, and re-run green; (2) fill placeholder pins
-> before their phases — HF revision sha (train config, P2), `LM_EVAL_REV` (P4), llama.cpp sha
-> (P3), age recipient in `.sops.yaml` (first secret).
-> Remove this notice once the RTL snapshot passes.
+> **⚠️ Current repository state (as of 2026-07-15): P0 COMPLETE — `just check` GREEN, RTL/LTR
+> snapshots GREEN.** The full §2 tree exists (see ADR-0002 for in-spec implementation choices),
+> lockfiles are generated, `just check` passes end-to-end (ruff+mypy+pytest both Python
+> workspaces, biome+tsc+vitest+i18n-sync web, data-gate, verify-no-cdn), and Playwright RTL+LTR
+> snapshots pass for all 6 routes (baselines in `apps/web/e2e/rtl-ltr.spec.ts-snapshots/`).
+> The P1–P5 *source* is written but the pipeline has never been executed: no data ingested
+> (MANIFEST zeroed), domain eval holds 12/300 items, no reports, no model artifacts.
+> **Next: P1 (data).** Fill placeholder pins before their phases — HF revision sha (train
+> config, P2), llama.cpp sha (P3: `ml/configs/quant/gguf-q4km.yaml`), `LM_EVAL_REV` (P4),
+> age recipient in `.sops.yaml` (first secret). Remove this notice when P1 lands.
 
 ---
 

@@ -8,7 +8,7 @@ import { useUiStore } from "@/store/ui";
 import { AdaptiveDpr, PerformanceMonitor } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import { EffectComposer } from "@react-three/postprocessing";
-import { Component, type ReactNode, useEffect, useState } from "react";
+import { Component, type ReactNode, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 // Probe once per page load and release the probe context immediately: browsers cap live
@@ -137,7 +137,9 @@ export function SceneFrame({
         >
           <PerformanceMonitor onDecline={() => setDegraded(true)}>
             <AdaptiveDpr pixelated />
-            {children}
+            {/* async scene assets (e.g. troika font load in drei <Text>) suspend — without a
+                boundary here that bubbles to the router Suspense and unmounts the whole page */}
+            <Suspense fallback={null}>{children}</Suspense>
           </PerformanceMonitor>
         </Canvas>
       </div>
