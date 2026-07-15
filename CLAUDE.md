@@ -808,6 +808,33 @@ helm-deploy env:  # helmfile-style apply of charts with sops-decrypted values
 bench-jetson:     # runs ops/runbooks/jetson-bench.md steps, writes evals/reports/edge_bench.json
 ```
 
+### 12.1 Inner-loop shortcuts (`just check` runs everything; these run one thing)
+
+`just check` is the full PR gate. While iterating, run a single workspace/test directly — the two
+`uv` workspaces are independent, so `cd` into the one you're touching. Config lives in each
+`pyproject.toml`: `ml/` = ruff (line 100, ignores RUF001-003 for Arabic text) + `mypy --strict`;
+`apps/api` adds `asyncio_mode=auto`, `pydantic.mypy`, respx + schemathesis, and an aiosqlite test DB.
+
+```bash
+# ml/ — training/quant/eval workspace (no GPU extras needed for lint/test)
+cd ml       && uv run pytest tests/test_gates.py::test_license_gate_blocks_noncommercial -q
+cd ml       && uv run ruff check . && uv run mypy .
+
+# apps/api — FastAPI gateway (async tests, respx-mocked upstreams)
+cd apps/api  && uv run pytest tests/test_chat_sse.py -q          # SSE proxy chunk-integrity
+cd apps/api  && uv run pytest -k pii -q                          # single test by keyword
+
+# apps/web — React/R3F dashboard
+cd apps/web  && pnpm test -- --run tests/bidi.test.ts           # one vitest file (grapheme flush)
+cd apps/web  && pnpm exec biome check . && pnpm exec tsc --noEmit
+cd apps/web  && pnpm e2e                                        # Playwright RTL+LTR (needs `playwright install chromium` once, online)
+```
+
+GPU-heavy ML deps are optional extras — `uv sync` alone (via `just setup`) installs only the slim
+lint/test set; add `--extra train`/`--extra quant`/`--extra arabic` on a train box. Regenerate the
+web API client after any endpoint change: `just api-types` (output in `apps/web/src/lib/api/` is
+generated — never hand-edit).
+
 ## 13. Implementation roadmap (phases = PR milestones; each has acceptance criteria)
 
 **P0 · Skeleton (wk 1).** Monorepo tree, justfile, CI (lint/type/test green on hello-world),
