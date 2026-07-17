@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 
 class TelemetrySnapshot(BaseModel):
-    source: str  # e.g. jetson-01 | gpu-node-0
+    source: str  # e.g. edge-01 | gpu-node-0
     ts: dt.datetime
     watts: float | None = None
     gpu_util_pct: float | None = None

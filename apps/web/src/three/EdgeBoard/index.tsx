@@ -1,7 +1,7 @@
 import { formatMetric } from "@/lib/format";
 import { useUiStore } from "@/store/ui";
 /**
- * EdgeBoard — live telemetry (§8.4c). A low-poly Jetson-style board whose emissive heat
+ * EdgeBoard — live telemetry (§8.4c). A low-poly edge board whose emissive heat
  * follows live watts from /v1/telemetry/stream. Gauges are drei <Html> overlays so numbers
  * stay crisp and accessible. (A draco glTF ≤300 KB can replace the procedural board later —
  * same props.)
@@ -21,7 +21,7 @@ export interface EdgeMetrics {
 }
 
 const IDLE_W = 5;
-const MAX_W = 25; // Orin Nano envelope; heat glow normalizes into this range
+const MAX_W = 25; // small-edge-box envelope; heat glow normalizes into this range
 
 function Board({ metrics }: { metrics: EdgeMetrics }) {
   const heatRef = useRef<THREE.MeshStandardMaterial>(null);

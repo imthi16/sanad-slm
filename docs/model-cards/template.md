@@ -42,7 +42,7 @@ Calibration: bilingual, ≥40% Arabic (English-only calibration measurably degra
 ## Efficiency
 
 {{ttft}} ms TTFT · {{tps_gpu}} tok/s (vLLM AWQ, batch {{batch}}) · {{tps_edge}} tok/s @
-{{watts}} W (Orin Nano, {{power_mode}}, JetPack {{jetpack}}) · ${{usd_per_1m}}/1M output
+{{watts}} W ({{edge_platform}}, {{threads}} threads, llama.cpp {{llamacpp_ver}}) · ${{usd_per_1m}}/1M output
 tokens (model: `evals/reports/cost_model.md`).
 
 ## Limitations & risks

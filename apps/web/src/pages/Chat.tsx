@@ -26,6 +26,17 @@ export default function Chat() {
     staleTime: 30_000,
   });
 
+  // don't leave the picker on a dead upstream when a healthy one exists
+  useEffect(() => {
+    const list = models.data?.data;
+    if (!list?.length) return;
+    const healthy = (id: string) => list.find((m) => m.id === id)?.x_sanad?.healthy;
+    if (!healthy(model)) {
+      const firstHealthy = list.find((m) => m.x_sanad?.healthy);
+      if (firstHealthy) setModel(firstHealthy.id);
+    }
+  }, [models.data, model]);
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: `messages` is the trigger — scroll to the newest message whenever the list changes
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });

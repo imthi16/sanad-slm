@@ -9,11 +9,11 @@ import { useTokenizerStore } from "@/store/tokenizer";
  * through. The DOM HUD/pills live in the page (zustand bridges DOM ⇄ Canvas).
  */
 import { useFrame, useThree } from "@react-three/fiber";
-import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
+import { Bloom, Vignette } from "@react-three/postprocessing";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { type GlyphAtlas, buildAtlas } from "../lib/glyphAtlas";
-import { SceneFrame } from "../lib/perf";
+import { PostFX, SceneFrame, useFontsReady } from "../lib/perf";
 import { baselinePositions, computeTargets } from "../lib/useTokenClusters";
 
 const VERT = /* glsl */ `
@@ -184,12 +184,15 @@ function DampedOrbit() {
 
 function FieldContents() {
   const text = useTokenizerStore((s) => s.text);
+  // canvas fillText draws nothing for still-loading webfonts and never re-renders,
+  // so an atlas built before document.fonts.ready is silently blank — wait for it
+  const fontsReady = useFontsReady();
   const atlases = useMemo(
-    () => ({
-      ar: buildAtlas(text, "ar"),
-      en: buildAtlas(text, "en"),
-    }),
-    [text],
+    () =>
+      fontsReady
+        ? { ar: buildAtlas(text, "ar"), en: buildAtlas(text, "en") }
+        : { ar: null, en: null },
+    [text, fontsReady],
   );
 
   return (
@@ -198,11 +201,11 @@ function FieldContents() {
       {atlases.ar && <ScriptField atlas={atlases.ar} sentence={text} />}
       {atlases.en && <ScriptField atlas={atlases.en} sentence={text} />}
       <DampedOrbit />
-      <EffectComposer>
+      <PostFX>
         {/* subtle only: bloom on the brightest glyphs + a quiet vignette (§8.4) */}
         <Bloom luminanceThreshold={0.85} intensity={0.35} mipmapBlur />
         <Vignette darkness={0.55} offset={0.3} />
-      </EffectComposer>
+      </PostFX>
     </>
   );
 }

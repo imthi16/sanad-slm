@@ -1,8 +1,8 @@
 """GET /v1/telemetry/stream — SSE fan-out of edge/GPU metrics via Redis pub/sub (§7.2).
 
-Exporters (tegrastats sidecar, DCGM bridge) publish JSON snapshots to the `sanad:telemetry`
-channel; every dashboard client gets its own subscription. POST endpoint lets edge boxes
-without Redis access push through the API (service token).
+Exporters (llama-server metrics bridge, DCGM bridge) publish JSON snapshots to the
+`sanad:telemetry` channel; every dashboard client gets its own subscription. POST endpoint
+lets edge boxes without Redis access push through the API (service token).
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ async def ingest(
 
 
 async def demo_publisher(request_app_state: object, interval: float = 2.0) -> None:
-    """dev-mode only: synthetic telemetry so the EdgeBoard scene works without a Jetson."""
+    """dev-mode only: synthetic telemetry so the EdgeBoard scene works without an edge node."""
     import math
     import time
 
@@ -83,7 +83,7 @@ async def demo_publisher(request_app_state: object, interval: float = 2.0) -> No
     while True:
         t = time.monotonic() - t0
         snapshot = {
-            "source": "jetson-demo",
+            "source": "edge-demo",
             "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "watts": round(10 + 4 * math.sin(t / 7), 2),
             "gpu_util_pct": round(55 + 35 * abs(math.sin(t / 11)), 1),
