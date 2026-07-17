@@ -15,12 +15,15 @@ log = structlog.get_logger()
 
 def _client(settings: Settings) -> Any:
     import boto3
+    from botocore.config import Config
 
     return boto3.client(
         "s3",
         endpoint_url=settings.registry_s3_endpoint,
         aws_access_key_id=settings.registry_access_key,
         aws_secret_access_key=settings.registry_secret_key,
+        # the route degrades to [] when MinIO is away — fail in seconds, not 60s×retries
+        config=Config(connect_timeout=2, read_timeout=10, retries={"max_attempts": 1}),
     )
 
 
