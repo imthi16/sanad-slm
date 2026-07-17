@@ -821,14 +821,35 @@ helm-deploy env:  # helmfile-style apply of charts with sops-decrypted values
 bench-edge:       # local llama.cpp bench (ops/runbooks/edge-bench.md) → evals/reports/edge_bench.json
 ```
 
-**Running a single test** (faster inner loop than `just check`):
+### 12.1 Inner-loop shortcuts (`just check` runs everything; these run one thing)
+
+`just check` is the full PR gate. While iterating, run a single workspace/test directly — the two
+`uv` workspaces are independent, so `cd` into the one you're touching. Tool config lives in each
+workspace's `pyproject.toml` (web: `biome.json`): both Python stacks = ruff (line 100; RUF001–003
+ignored — Arabic text is deliberate) + mypy `strict = true`; `apps/api` adds `pydantic.mypy`,
+`asyncio_mode = "auto"`, respx-mocked upstreams and an in-memory aiosqlite test DB, and its pytest
+gate (CI **and** `just check`) enforces `--cov-fail-under=80` on `services/` + `routers/`.
 
 ```bash
-cd ml && uv run pytest tests/test_gates.py::test_case -q        # ml workspace
-cd apps/api && uv run pytest tests/test_chat_sse.py -k name -q  # api workspace
-cd apps/web && pnpm exec vitest --run tests/bidi.test.ts        # web unit (vitest; `pnpm test` = watch mode)
-cd apps/web && pnpm exec playwright test e2e/rtl-ltr.spec.ts    # e2e (builds + serves preview itself)
+# ml/ — training/quant/eval workspace (no GPU extras needed for lint/test)
+cd ml && uv run pytest tests/test_gates.py::test_gate_blocks_planted_noncommercial_record -q
+cd ml && uv run ruff check . && uv run mypy .
+
+# apps/api — FastAPI gateway (async tests, respx-mocked upstreams)
+cd apps/api && uv run pytest tests/test_chat_sse.py -k name -q   # one file / keyword
+cd apps/api && uv run pytest -q --cov=src/sanad_api/services --cov=src/sanad_api/routers --cov-fail-under=80
+
+# apps/web — React/R3F dashboard
+cd apps/web && pnpm exec vitest --run tests/bidi.test.ts         # one vitest file (`pnpm test` = watch mode)
+cd apps/web && pnpm exec biome check . && pnpm exec tsc --noEmit
+cd apps/web && pnpm exec playwright test e2e/rtl-ltr.spec.ts     # e2e — builds + serves preview itself
+                                                                 # (`pnpm exec playwright install chromium` once, online)
 ```
+
+GPU-heavy ML deps are optional extras — `uv sync` alone (via `just setup`) installs only the slim
+lint/test set; add `--extra train` / `--extra quant` / `--extra arabic` on a train box. Regenerate
+the web API client after any endpoint change: `just api-types` (output in `apps/web/src/lib/api/`
+is generated — never hand-edit).
 
 ## 13. Implementation roadmap (phases = PR milestones; each has acceptance criteria)
 
