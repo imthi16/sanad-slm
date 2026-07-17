@@ -96,7 +96,7 @@ edge-sim:
 # EVERYTHING a PR must pass locally (mirrors ci.yml)
 check:
     cd {{ML}} && uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run pytest -q
-    cd {{API}} && uv run ruff check . && uv run ruff format --check . && uv run mypy src && uv run pytest -q
+    cd {{API}} && uv run ruff check . && uv run ruff format --check . && uv run mypy src && uv run pytest -q --cov=src/sanad_api/services --cov=src/sanad_api/routers --cov-fail-under=80
     cd {{WEB}} && pnpm exec biome check . && pnpm exec tsc --noEmit && pnpm exec vitest --run && node scripts/check-i18n-sync.mjs
     just data-gate
     just verify-no-cdn

@@ -13,7 +13,7 @@ const Registry = lazy(() => import("@/pages/Registry"));
 
 function PageFallback() {
   return (
-    <div className="mx-auto max-w-6xl p-6">
+    <div data-testid="page-fallback" className="mx-auto max-w-6xl p-6">
       <Skeleton className="h-10 w-1/3 mb-6" />
       <Skeleton className="h-64 w-full" />
     </div>
