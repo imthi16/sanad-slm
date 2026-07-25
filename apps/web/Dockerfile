@@ -1,8 +1,13 @@
 # sanad-web — build with pnpm, serve with nginx (CSP self-only baked in).
 FROM node:22-slim AS build
 WORKDIR /app
+# corepack resolves the pnpm version from package.json's `packageManager` field. Without that
+# pin it fetches whatever is newest — which is how this build landed on pnpm 11, where
+# `pnpm.onlyBuiltDependencies` is no longer read and unapproved build scripts fail the install.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 COPY package.json pnpm-lock.yaml* ./
+RUN corepack install
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 COPY . .
