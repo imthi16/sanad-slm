@@ -27,7 +27,7 @@ CORPORA_DIR = Path(__file__).parent / "corpora"
 TOKENIZERS = {
     "qwen3": "Qwen/Qwen3-4B-Instruct-2507",
     "jais-family": "inceptionai/jais-family-6p7b-chat",
-    "allam": "ALLaM-AI/ALLaM-7B-Instruct-preview",
+    "allam": "humain-ai/ALLaM-7B-Instruct-preview",
     "falcon-h1": "tiiuae/Falcon-H1-7B-Instruct",
     "llama-3.2": "meta-llama/Llama-3.2-3B-Instruct",
 }

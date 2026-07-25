@@ -1,6 +1,6 @@
 # Canonical SFT config (CLAUDE.md §5.2). Any hyperparameter change = NEW file, never mutate.
 base_model: Qwen/Qwen3-4B-Instruct-2507 # Apache-2.0
-revision: "<pin-hf-commit-sha>" # REQUIRED before first train: pin exact HF commit sha
+revision: "cdbee75f17c01a7cc42f958dc650907174af0554" # verified 2026-07-25 · Apache-2.0 · ungated
 seed: 3407
 max_seq_len: 4096
 load_in_4bit: true # NF4 (bitsandbytes)

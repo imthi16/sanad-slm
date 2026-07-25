@@ -1,7 +1,7 @@
 # llama.cpp GGUF export — Q4_K_M with bilingual importance matrix (§5.3).
 llama_cpp:
   # Pin the exact llama.cpp commit; bump only via PR + re-run of ppl-gate.
-  rev: "<pin-llamacpp-commit-sha>"
+  rev: "c0bc8591e8815c63cb01dd3f051a8b0df02501c9" # release b10107 · verified 2026-07-25
 quant_type: Q4_K_M
 imatrix:
   # imatrix MUST run on bilingual text — this is the current quality trick for AR retention.

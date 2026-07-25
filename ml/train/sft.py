@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -29,12 +30,20 @@ ML_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ML_ROOT / "registry"))
 
 
+#: A pinned revision is a full 40-character commit sha and nothing else. Matching only the
+#: placeholder let `revision: main` — or a tag, which upstream can move — pass the gate, so the
+#: shape is checked rather than one known-bad value (prime directive 4).
+_COMMIT_SHA = re.compile(r"^[0-9a-f]{40}$")
+
+
 def load_config(path: Path) -> dict[str, Any]:
     cfg: dict[str, Any] = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if "<pin-hf-commit-sha>" in str(cfg.get("revision", "")):
+    revision = str(cfg.get("revision", ""))
+    if not _COMMIT_SHA.match(revision):
         raise SystemExit(
-            "config revision is unpinned — pin the exact HF commit sha before training "
-            "(prime directive 4: reproducibility over vibes)"
+            f"config revision {revision!r} is not a 40-char commit sha — pin the exact HF "
+            "revision before training (prime directive 4: reproducibility over vibes). "
+            "Branches and tags move; a sha does not."
         )
     return cfg
 
