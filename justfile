@@ -117,6 +117,14 @@ check:
 
 # scan built web dist/ for external origins — sovereign gate (build first if missing).
 # HTML/CSS: zero tolerance; JS: justified allowlist of inert strings (see the script).
+# execute the §10 sovereignty checklist (no cluster needed; reports what still needs one)
+sovereign-audit:
+    python3 ops/sovereign_audit.py
+
+# verify a signature before trusting an artifact: `just verify-artifact image <ref>`
+verify-artifact kind ref:
+    bash ops/verify-artifacts.sh {{kind}} {{ref}}
+
 verify-no-cdn:
     @test -d {{WEB}}/dist || (cd {{WEB}} && pnpm build)
     cd {{WEB}} && node scripts/verify-no-cdn.mjs dist
