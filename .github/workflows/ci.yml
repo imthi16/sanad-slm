@@ -204,6 +204,7 @@ jobs:
         with:
           image-ref: ${{ env.LOCAL_TAG }}
           severity: HIGH,CRITICAL
+          ignore-unfixed: true
           exit-code: "1"
       - name: syft SBOM
         uses: anchore/sbom-action@v0

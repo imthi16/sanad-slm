@@ -17,7 +17,10 @@ RUN pnpm build
 # sovereign gate at image build time (same script as `just verify-no-cdn`)
 RUN node scripts/verify-no-cdn.mjs dist
 
-FROM nginx:1.27-alpine
+FROM nginx:1.31-alpine
+# Apply available security updates: the base image lags its distro's package index, and Trivy's
+# gate is "no HIGH/CRITICAL that has a fix" — so anything fixable must actually be fixed here.
+RUN apk upgrade --no-cache
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 RUN sed -i '/^http {/a \    server_tokens off;' /etc/nginx/nginx.conf || true
 COPY --from=build /app/dist /usr/share/nginx/html
