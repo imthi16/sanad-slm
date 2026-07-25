@@ -829,6 +829,11 @@ The former Ansible/Jetson provisioning path was removed by ADR-0004.
 
 ## 10. Security & sovereignty checklist (audited per release)
 
+Run `just sovereign-audit` — it executes every item below that does not need a live cluster and
+**names the three that do** rather than counting them as green. It gates CI (`sovereignty` job).
+`ops/verify-artifacts.sh` is the cosign verify path: signing without verification proves nothing to
+whoever pulls the artifact.
+
 - [ ] `SANAD_MODE=sovereign` sets all offline env vars; boot fails loudly if a model dir is missing (no silent hub fetch)
 - [ ] `sovereign-guard` NetworkPolicies applied; egress-zero alert green for 24 h before demo
 - [ ] All images: Trivy high/critical = 0 (or documented waiver), SBOM attached, cosign-signed; Harbor policy blocks unsigned

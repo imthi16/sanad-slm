@@ -356,6 +356,7 @@ Everything below runs in CI and locally via `just check` — **currently green e
 | `apps/web` | biome · tsc --strict · vitest · Playwright | **13 unit + 22 e2e** — grapheme buffering, atlas shaping safety, numeral systems; RTL+LTR snapshots for all six pages against fixtures; deterministic palette and dual-script font assertions |
 | data | `just data-gate` | licenses ∈ {Apache-2.0, CC-BY-4.0, MIT} for the commercial profile |
 | sovereignty | `just verify-no-cdn` | no fetchable external origins in `web/dist` |
+| sovereignty | `just sovereign-audit` | **26 §10 checks** — CSP, offline overlay, default-deny egress, egress alert, SOPS, judge flags, PII patterns; the 3 cluster-only items are reported, never assumed |
 | quantization | `ppl_gate.py` | ΔPPL ≤ 3% / 5% per language; ArabicMMLU drift ≤ 1 pt |
 | eval | regression gate | domain ≥ base+5 · ArabicMMLU ≥ base−1 · judge claims require human κ |
 | images | Trivy · Syft · cosign | 0 high/critical, SBOM attached, signed |
