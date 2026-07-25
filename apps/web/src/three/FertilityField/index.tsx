@@ -4,7 +4,7 @@ import { useTokenizerStore } from "@/store/tokenizer";
  *
  * A real bilingual sentence renders as glyph-particles (instanced quads over a DOM-shaped
  * canvas atlas — ligatures stay correct). On tokenizer switch the particles lerp into token
- * clusters: teal = Arabic tokens, sand = English. One draw call per script; ≤1200 instances;
+ * clusters: paper-cream = Arabic tokens, pewter = Latin. One draw call per script; ≤1200 instances;
  * custom shader does the position lerp + cluster color. Drag to orbit (damped), scroll passes
  * through. The DOM HUD/pills live in the page (zustand bridges DOM ⇄ Canvas).
  */
@@ -197,7 +197,7 @@ function FieldContents() {
 
   return (
     <>
-      <color attach="background" args={["#0E1420"]} />
+      <color attach="background" args={["#171310"]} />
       {atlases.ar && <ScriptField atlas={atlases.ar} sentence={text} />}
       {atlases.en && <ScriptField atlas={atlases.en} sentence={text} />}
       <DampedOrbit />

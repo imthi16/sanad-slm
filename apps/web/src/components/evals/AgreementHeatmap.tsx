@@ -43,9 +43,9 @@ export function AgreementHeatmap({ cells }: { cells: HeatCell[] }) {
                     key={d}
                     className="rounded p-2 text-center metric"
                     style={{
-                      backgroundColor: `color-mix(in oklab, var(--color-claret-500) ${Math.round(
+                      backgroundColor: `color-mix(in oklab, var(--color-cinnabar-400) ${Math.round(
                         intensity * 65,
-                      )}%, var(--color-dune-900))`,
+                      )}%, var(--color-ink-900))`,
                     }}
                     title={`${j} × ${d}: ${v.toFixed(2)}`}
                   >

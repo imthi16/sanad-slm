@@ -36,7 +36,7 @@ export function Poster({ label, children }: { label: string; children?: ReactNod
     <div
       role="img"
       aria-label={label}
-      className="panel relative flex h-full min-h-64 w-full items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_30%_20%,#1a2438_0%,#0E1420_70%)]"
+      className="panel relative flex h-full min-h-64 w-full items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_30%_20%,#241c15_0%,#171310_70%)]"
     >
       <div className="text-center text-sand-400 text-sm p-6">
         {children ?? t("poster.webglMissing")}

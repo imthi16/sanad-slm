@@ -22,12 +22,12 @@ export function ChatMessage({ message }: { message: Message }) {
         aria-live={message.streaming ? "polite" : undefined}
         className={clsx(
           "panel max-w-[75%] whitespace-pre-wrap px-4 py-3 text-sm leading-relaxed",
-          isUser ? "border-brass-400/30" : "border-dune-700",
+          isUser ? "border-verdigris-400/30" : "border-ink-700",
         )}
       >
         {/* mixed-script inline content stays isolated (§8.6) */}
         <span className="bidi-isolate">{message.content}</span>
-        {message.streaming && <span className="animate-pulse text-brass-400">▍</span>}
+        {message.streaming && <span className="animate-pulse text-verdigris-400">▍</span>}
       </div>
       {message.stats && !message.streaming && (
         <span className="text-xs text-sand-400" dir="ltr">

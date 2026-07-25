@@ -31,7 +31,7 @@ export default function TokenizerLab() {
           onBlur={() => measure(text)}
           onKeyDown={(e) => e.key === "Enter" && measure(text)}
           placeholder={t("fertility.tryPlaceholder")}
-          className="min-w-0 flex-1 rounded-md border border-dune-700 bg-dune-900 px-3 py-2.5
+          className="min-w-0 flex-1 rounded-md border border-ink-700 bg-ink-900 px-3 py-2.5
                      text-sm text-sand-100 placeholder:text-sand-400/60"
         />
         <label className="flex items-center gap-2 text-xs text-sand-400">
@@ -39,7 +39,7 @@ export default function TokenizerLab() {
             type="checkbox"
             checked={numerals === "arab"}
             onChange={(e) => setNumerals(e.target.checked ? "arab" : "latn")}
-            className="accent-brass-400"
+            className="accent-verdigris-400"
           />
           {t("numerals.label")}
         </label>
@@ -59,7 +59,7 @@ export default function TokenizerLab() {
             {TOKENIZER_ORDER.map((name) => {
               const tok = result?.tokenizers[name];
               return (
-                <tr key={name} className="border-t border-dune-700/60">
+                <tr key={name} className="border-t border-ink-700/60">
                   <td className="py-2" dir="ltr">
                     {name}
                   </td>
@@ -98,7 +98,7 @@ export default function TokenizerLab() {
                     key={i}
                     className={`bidi-isolate rounded px-1.5 py-0.5 text-sm ${
                       s.script === "ar"
-                        ? "bg-teal-400/15 text-teal-400"
+                        ? "bg-verdigris-400/15 text-verdigris-400"
                         : "bg-sand-400/10 text-sand-100"
                     }`}
                     title={`#${s.id}`}

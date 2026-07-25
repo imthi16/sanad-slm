@@ -1,12 +1,31 @@
-import { expect, test } from "@playwright/test";
+import { fileURLToPath } from "node:url";
+import { type Page, expect, test } from "@playwright/test";
 
 // Every page passes in BOTH directions (§8.6: Playwright captures RTL and LTR snapshots).
 const ROUTES = ["/", "/chat", "/evals", "/tokenizer", "/edge", "/registry"] as const;
+
+const FERTILITY_FIXTURE = fileURLToPath(new URL("./fixtures/fertility.json", import.meta.url));
+
+/**
+ * The Specimen's rule is measured from real token offsets, so an unserved
+ * /v1/tokenize/fertility leaves the hero's signature element blank and the snapshots only ever
+ * prove the empty state. Serving a fixture makes them cover the populated rule instead.
+ *
+ * The fixture is SYNTHETIC — plausible segmentations shaped to match each tokenizer's known
+ * Arabic fertility ordering. It exists to pin layout, and no figure in it may be quoted
+ * anywhere as a measurement (prime directive 5). Real numbers come from the live tokenizers.
+ */
+async function serveFertilityFixture(page: Page): Promise<void> {
+  await page.route("**/v1/tokenize/fertility", (route) =>
+    route.fulfill({ path: FERTILITY_FIXTURE, contentType: "application/json" }),
+  );
+}
 
 for (const route of ROUTES) {
   for (const lang of ["en", "ar"] as const) {
     test(`${route} renders in ${lang} (${lang === "ar" ? "RTL" : "LTR"})`, async ({ page }) => {
       await page.addInitScript((l) => localStorage.setItem("sanad.lang", l), lang);
+      await serveFertilityFixture(page);
       await page.goto(route);
 
       // the <html dir lang> flip is the global bidi contract (§8.3)

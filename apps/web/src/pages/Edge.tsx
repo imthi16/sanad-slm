@@ -48,7 +48,7 @@ export default function Edge() {
           <h1 className="font-display text-2xl">{t("edge.title")}</h1>
           <p className="text-sm text-sand-400">{t("edge.sub")}</p>
         </div>
-        <Badge tone={connected ? "teal" : "claret"} aria-live="polite">
+        <Badge tone={connected ? "live" : "alarm"} aria-live="polite">
           {snapshot?.source ?? t("edge.waiting")}
         </Badge>
       </div>
