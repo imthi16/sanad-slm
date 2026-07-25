@@ -123,11 +123,15 @@ const EVAL_RUN_DETAIL = {
   },
 };
 
+const ARTIFACT = "sanad-qwen3-4b-bank-fixture";
+const AWQ_VERSION = "v0.0.0-fixture";
+const GGUF_VERSION = "v0.0.0-fixture-gguf";
+
 const REGISTRY = {
   artifacts: [
     {
-      model_name: "sanad-qwen3-4b-bank-fixture",
-      version: "v0.0.0-fixture",
+      model_name: ARTIFACT,
+      version: AWQ_VERSION,
       sha256: "fixture00112233445566778899aabbccddeeff00112233445566778899aabbcc",
       cosign_signed: true,
       licenses: ["Apache-2.0", "CC-BY-4.0"],
@@ -135,8 +139,8 @@ const REGISTRY = {
       created_at: "2026-07-20T09:30:00Z",
     },
     {
-      model_name: "sanad-qwen3-4b-bank-fixture",
-      version: "v0.0.0-fixture-gguf",
+      model_name: ARTIFACT,
+      version: GGUF_VERSION,
       sha256: null,
       cosign_signed: false,
       licenses: ["Apache-2.0"],
@@ -145,20 +149,30 @@ const REGISTRY = {
     },
   ],
   lineage: {
+    // LineageChain matches edges against `${model_name}@${version}`, so at least one edge must
+    // terminate at that exact key or the lineage row renders nothing and the snapshot proves
+    // only its absence. Both artifacts are wired in: the AWQ version receives base/data/config
+    // and emits the GGUF one.
     nodes: [
-      { id: "Qwen3-4B", kind: "base" },
-      { id: "data-fixture", kind: "dataset" },
-      { id: "train-cfg-fixture", kind: "config" },
-      { id: "merged-bf16", kind: "model", cosign_signed: true },
-      { id: "awq-w4a16", kind: "quant", cosign_signed: true },
-      { id: "gguf-q4km", kind: "quant", cosign_signed: false },
+      { id: "Qwen/Qwen3-4B-Instruct-2507", kind: "base" },
+      { id: "data-manifest-fixture", kind: "dataset" },
+      { id: "train-config-fixture", kind: "config" },
+      { id: `${ARTIFACT}@${AWQ_VERSION}`, kind: "model", cosign_signed: true },
+      { id: `${ARTIFACT}@${GGUF_VERSION}`, kind: "quant", cosign_signed: false },
     ],
     edges: [
-      { from: "Qwen3-4B", to: "merged-bf16", label: "qlora+dora" },
-      { from: "data-fixture", to: "merged-bf16", label: "sft" },
-      { from: "train-cfg-fixture", to: "merged-bf16", label: "config" },
-      { from: "merged-bf16", to: "awq-w4a16", label: "llm-compressor" },
-      { from: "merged-bf16", to: "gguf-q4km", label: "imatrix" },
+      {
+        from: "Qwen/Qwen3-4B-Instruct-2507",
+        to: `${ARTIFACT}@${AWQ_VERSION}`,
+        label: "qlora+dora",
+      },
+      { from: "data-manifest-fixture", to: `${ARTIFACT}@${AWQ_VERSION}`, label: "sft" },
+      { from: "train-config-fixture", to: `${ARTIFACT}@${AWQ_VERSION}`, label: "config" },
+      {
+        from: `${ARTIFACT}@${AWQ_VERSION}`,
+        to: `${ARTIFACT}@${GGUF_VERSION}`,
+        label: "imatrix + Q4_K_M",
+      },
     ],
   },
 };
@@ -185,17 +199,29 @@ const TELEMETRY_FRAMES = [
   }),
 ];
 
-/** A bilingual assistant reply, streamed the way the real proxy streams it. */
-function chatStreamBody(): string {
-  const reply = [
-    "يخضع حساب التوفير ",
-    "لمعدل فائدة سنوي ",
-    "قدره 2.75% وفقاً ",
-    "لتعليمات المصرف المركزي. ",
-    "In short: 2.75% APR, ",
-    "subject to CBUAE rules.",
-  ];
-  const chunks = reply.map((content) =>
+/**
+ * A bilingual assistant reply, chunked the way a real tokenizer stream chunks it.
+ *
+ * Delta 3 ends on the base letter ا and delta 4 opens with the combining fathatan (U+064B) that
+ * belongs to it, so the stream splits a grapheme *mid-cluster*. That is the case GraphemeBuffer
+ * exists for: without it the DOM briefly shows a bare combining mark hanging off the previous
+ * word. Deltas that all break on spaces cannot exercise it — concatenation yields the same final
+ * string either way, so a final-text assertion alone can never fail.
+ */
+export const CHAT_DELTAS = [
+  "يخضع حساب التوفير ",
+  "لمعدل فائدة سنوي ",
+  "قدره 2.75% وفقا",
+  "\u064B لتعليمات المصرف المركزي. ",
+  "In short: 2.75% APR, ",
+  "subject to CBUAE rules.",
+] as const;
+
+/** What the thread must read once the stream drains — byte-exact. */
+export const CHAT_REPLY = CHAT_DELTAS.join("");
+
+function sseFrames(): string[] {
+  const chunks = CHAT_DELTAS.map((content) =>
     JSON.stringify({
       id: "chatcmpl-fixture",
       object: "chat.completion.chunk",
@@ -212,7 +238,73 @@ function chatStreamBody(): string {
       upstream: "vllm",
     },
   });
-  return `${[...chunks, final].map((c) => `data: ${c}`).join("\n\n")}\n\ndata: [DONE]\n\n`;
+  return [...chunks, final, "[DONE]"].map((c) => `data: ${c}\n\n`);
+}
+
+function chatStreamBody(): string {
+  return sseFrames().join("");
+}
+
+/**
+ * Deliver the chat stream frame by frame, with a gap between frames.
+ *
+ * `route.fulfill` can only send a *complete* response, so the reader drains every delta in one
+ * pass and the UI never renders a partial reply — there is no intermediate state to inspect.
+ * Stubbing fetch with a paced ReadableStream reproduces real streaming, which is what makes the
+ * grapheme-boundary invariant observable. Also records every rendered state of the streaming
+ * bubble (it carries aria-live while in flight) for the test to assert over.
+ */
+export async function installPacedChatStream(page: Page, frameGapMs = 70): Promise<void> {
+  await page.addInitScript(
+    ({ frames, gap }: { frames: string[]; gap: number }) => {
+      const states: string[] = [];
+      (window as unknown as { __streamStates: string[] }).__streamStates = states;
+
+      // Install the stub before anything that could throw: init scripts run at document-start,
+      // and an exception here would abort the rest of the script silently — leaving the fetch
+      // stub uninstalled, the stream delivered in one shot, and no intermediate state to record.
+      const original = window.fetch;
+      window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (!url.includes("/v1/chat/completions")) return original(input, init);
+        const encoder = new TextEncoder();
+        const body = new ReadableStream({
+          start(controller) {
+            let i = 0;
+            const push = () => {
+              if (i >= frames.length) {
+                controller.close();
+                return;
+              }
+              controller.enqueue(encoder.encode(frames[i++]));
+              setTimeout(push, gap);
+            };
+            setTimeout(push, gap);
+          },
+        });
+        return Promise.resolve(
+          new Response(body, {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          }),
+        );
+      };
+
+      // `document.documentElement` does not exist yet at document-start, so observe `document`
+      // itself — always present, and subtree:true reaches the whole tree either way.
+      const record = () => {
+        const bubble = document.querySelector('[aria-live="polite"]');
+        const text = bubble?.textContent ?? "";
+        if (text && states[states.length - 1] !== text) states.push(text);
+      };
+      new MutationObserver(record).observe(document, {
+        subtree: true,
+        childList: true,
+        characterData: true,
+      });
+    },
+    { frames: sseFrames(), gap: frameGapMs },
+  );
 }
 
 /**

@@ -133,22 +133,43 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: every `uses:` resolves to a real tag or branch
+      - name: every `uses:` resolves to a real tag, branch or commit
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           fail=0
-          refs=$(grep -rhoE 'uses: *[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[A-Za-z0-9_.-]+' .github/workflows/ \
-                 | sed 's/uses: *//' | sort -u)
-          for ref in $refs; do
-            repo="${ref%@*}"; ver="${ref#*@}"
-            if gh api "repos/$repo/git/ref/tags/$ver" >/dev/null 2>&1 \
-            || gh api "repos/$repo/git/ref/heads/$ver" >/dev/null 2>&1; then
-              echo "ok      $ref"
-            else
-              echo "BROKEN  $ref"; fail=1
+          # Capture the whole `uses:` value, not owner/repo@ref only: nested actions and reusable
+          # workflows are `owner/repo/path/to/action@ref`, and matching `@` right after the repo
+          # name skips them — which would leave exactly the blind spot this job exists to close.
+          # Anchored to the start of the line so `uses:` appearing in prose (a step name, a
+          # comment) is not mistaken for a key.
+          refs=$(grep -rhoE '^[[:space:]]*-?[[:space:]]*uses:[[:space:]]*[^[:space:]#]+' \
+                   .github/workflows/ \
+                 | sed -E 's/^[[:space:]]*-?[[:space:]]*uses:[[:space:]]*//' | sort -u)
+          echo "parsed $(printf '%s\n' "$refs" | wc -l) references"
+          # read line by line rather than relying on word-splitting an unquoted variable
+          while IFS= read -r ref; do
+            [ -z "$ref" ] && continue
+            case "$ref" in
+              ./*|docker://*) echo "skip     $ref (local or docker action)"; continue ;;
+              *@*) ;;
+              *) echo "UNPINNED $ref (no @ref)"; fail=1; continue ;;
+            esac
+            spec="${ref%@*}"                     # owner/repo[/path…]
+            version="${ref##*@}"                 # tag, branch or commit sha
+            owner=$(printf '%s' "$spec" | cut -d/ -f1)
+            repo=$(printf '%s' "$spec" | cut -d/ -f2)
+            if [ -z "$owner" ] || [ -z "$repo" ]; then
+              echo "BROKEN   $ref (not owner/repo)"; fail=1; continue
             fi
-          done
+            if gh api "repos/$owner/$repo/git/ref/tags/$version" >/dev/null 2>&1 \
+            || gh api "repos/$owner/$repo/git/ref/heads/$version" >/dev/null 2>&1 \
+            || gh api "repos/$owner/$repo/commits/$version" >/dev/null 2>&1; then
+              echo "ok       $ref"
+            else
+              echo "BROKEN   $ref"; fail=1
+            fi
+          done <<< "$refs"
           exit $fail
 
   images:

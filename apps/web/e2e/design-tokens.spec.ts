@@ -109,16 +109,61 @@ test.describe("design tokens", () => {
     });
   }
 
-  test("no CDN-hosted font slipped into the loaded stylesheets", async ({ page }) => {
-    // verify-no-cdn greps the built bundle; this checks what the browser actually resolved,
-    // which also covers fonts injected at runtime (prime directive 1).
+  /**
+   * Read @font-face sources out of the CSSOM and watch what the browser actually fetches.
+   *
+   * `document.fonts` entries are FontFace objects, which expose no source URL — an earlier
+   * version of this test mapped them to `f.src` and so compared an array of empty strings to an
+   * empty array. It passed unconditionally. The CSSOM carries the real `src` descriptors, and the
+   * request log catches anything injected after load.
+   */
+  async function externalFontSources(page: import("@playwright/test").Page) {
+    return page.evaluate(() => {
+      const found: string[] = [];
+      for (const sheet of Array.from(document.styleSheets)) {
+        let rules: CSSRuleList;
+        try {
+          rules = sheet.cssRules;
+        } catch {
+          // a cross-origin sheet cannot be read — that it exists at all is itself a finding
+          if (sheet.href && /^https?:\/\//.test(sheet.href)) found.push(`stylesheet ${sheet.href}`);
+          continue;
+        }
+        for (const rule of Array.from(rules)) {
+          if (rule.constructor.name !== "CSSFontFaceRule") continue;
+          const src = (rule as CSSFontFaceRule).style.getPropertyValue("src");
+          for (const match of src.matchAll(/url\((['"]?)(https?:\/\/[^'")]+)\1\)/g)) {
+            if (match[2]) found.push(match[2]);
+          }
+        }
+      }
+      return found;
+    });
+  }
+
+  test("no external font is declared or fetched", async ({ page }) => {
+    const fetched: string[] = [];
+    page.on("request", (req) => {
+      const url = req.url();
+      if (req.resourceType() === "font" && !url.startsWith("http://localhost")) fetched.push(url);
+    });
+
     await page.goto("/");
     await page.evaluate(() => document.fonts.ready);
-    const external = await page.evaluate(() =>
-      [...document.fonts]
-        .map((f) => (f as FontFace & { src?: string }).src ?? "")
-        .filter((src) => /https?:\/\//.test(src)),
-    );
-    expect(external).toEqual([]);
+
+    expect(await externalFontSources(page)).toEqual([]);
+    expect(fetched).toEqual([]);
+  });
+
+  test("the external-font check would actually catch one", async ({ page }) => {
+    // Guards the guard: the previous implementation could not fail, so prove this one can.
+    await page.goto("/");
+    await page.evaluate(() => {
+      const style = document.createElement("style");
+      style.textContent =
+        "@font-face { font-family: 'Smuggled'; src: url('https://fonts.example.com/x.woff2') format('woff2'); }";
+      document.head.append(style);
+    });
+    expect(await externalFontSources(page)).toContain("https://fonts.example.com/x.woff2");
   });
 });
