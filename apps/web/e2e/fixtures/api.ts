@@ -1,0 +1,261 @@
+import { fileURLToPath } from "node:url";
+import type { Page } from "@playwright/test";
+
+/**
+ * Synthetic API responses so the snapshots cover populated layouts, not just empty states.
+ *
+ * SYNTHETIC — NOT MEASUREMENTS. The pipeline has not run (no data ingested, no model trained,
+ * no eval report), so nothing here can be real. Every value that could be mistaken for a result
+ * carries `fixture` in the adjacent label, and prime directive 5 applies: none of these numbers
+ * may be quoted in the README, the paper, a model card, or anywhere else. Their only job is to
+ * give each page enough shape to render.
+ *
+ * Without this, `/chat`, `/evals`, `/edge` and `/registry` only ever snapshot their empty
+ * states — so a regression in a populated table, a heatmap or a streamed message would not
+ * show up in CI at all.
+ */
+
+const FERTILITY = fileURLToPath(new URL("./fertility.json", import.meta.url));
+
+const MODELS = {
+  object: "list",
+  data: [
+    {
+      id: "sanad-bank-awq",
+      object: "model",
+      x_sanad: {
+        mode: "dev",
+        upstream: "vllm",
+        quant: "awq-w4a16",
+        healthy: true,
+        license: "Apache-2.0",
+      },
+    },
+    {
+      id: "sanad-bank-gguf",
+      object: "model",
+      x_sanad: {
+        mode: "dev",
+        upstream: "llamacpp",
+        quant: "gguf-q4km",
+        healthy: true,
+        license: "Apache-2.0",
+      },
+    },
+  ],
+};
+
+const EVAL_RUNS = [
+  {
+    id: "run-fixture-01",
+    created_at: "2026-07-20T09:00:00Z",
+    model_version: "fixture-only-not-a-real-run",
+    headline: { domain_eval: 0.71, arabicmmlu: 0.58 },
+  },
+];
+
+const EVAL_RUN_DETAIL = {
+  id: "run-fixture-01",
+  provenance_split: { native: 0.62, translated: 0.11, synthetic: 0.27 },
+  benchmark_scores: [
+    {
+      task: "arabicmmlu",
+      model: "fixture-base",
+      metric: "acc",
+      value: 0.55,
+      measured_locally: true,
+    },
+    {
+      task: "arabicmmlu",
+      model: "fixture-sanad",
+      metric: "acc",
+      value: 0.58,
+      measured_locally: true,
+    },
+    { task: "aratrust", model: "fixture-base", metric: "acc", value: 0.62, measured_locally: true },
+    {
+      task: "aratrust",
+      model: "fixture-sanad",
+      metric: "acc",
+      value: 0.66,
+      measured_locally: true,
+    },
+    {
+      task: "madinahqa",
+      model: "fixture-sanad",
+      metric: "acc",
+      value: 0.49,
+      measured_locally: false,
+    },
+  ],
+  judge: {
+    headline_final: 3.9,
+    correct_rate: 0.82,
+    per_dimension: [
+      { dimension: "completeness", score: 4.1 },
+      { dimension: "conciseness", score: 3.6 },
+      { dimension: "helpfulness", score: 4.0 },
+      { dimension: "honesty", score: 4.2 },
+      { dimension: "harmlessness", score: 4.7 },
+    ],
+    judges: ["falcon-h1-7b-fixture", "allam-7b-fixture"],
+    human_judge_kappa: 0.68,
+  },
+  agreement: {
+    krippendorff_alpha: { overall: 0.71, completeness: 0.66, conciseness: 0.58, honesty: 0.74 },
+    pairwise_cohens_kappa: { "falcon-h1-7b-fixture|allam-7b-fixture": 0.63 },
+    heatmap: [
+      { judge: "falcon-h1-7b-fixture", dimension: "completeness", mean_abs_dev: 0.4 },
+      { judge: "falcon-h1-7b-fixture", dimension: "conciseness", mean_abs_dev: 1.1 },
+      { judge: "falcon-h1-7b-fixture", dimension: "helpfulness", mean_abs_dev: 0.6 },
+      { judge: "allam-7b-fixture", dimension: "completeness", mean_abs_dev: 0.7 },
+      { judge: "allam-7b-fixture", dimension: "conciseness", mean_abs_dev: 1.6 },
+      { judge: "allam-7b-fixture", dimension: "helpfulness", mean_abs_dev: 0.5 },
+    ],
+    human_queue_count: 7,
+  },
+  efficiency: {
+    ttft_ms: 210,
+    tokens_per_second: 34.2,
+    peak_vram_gb: 6.1,
+    watts: 41.5,
+    usd_per_1m_output_tokens: 0.0,
+  },
+};
+
+const REGISTRY = {
+  artifacts: [
+    {
+      model_name: "sanad-qwen3-4b-bank-fixture",
+      version: "v0.0.0-fixture",
+      sha256: "fixture00112233445566778899aabbccddeeff00112233445566778899aabbcc",
+      cosign_signed: true,
+      licenses: ["Apache-2.0", "CC-BY-4.0"],
+      base_model: "Qwen/Qwen3-4B-Instruct-2507",
+      created_at: "2026-07-20T09:30:00Z",
+    },
+    {
+      model_name: "sanad-qwen3-4b-bank-fixture",
+      version: "v0.0.0-fixture-gguf",
+      sha256: null,
+      cosign_signed: false,
+      licenses: ["Apache-2.0"],
+      base_model: "Qwen/Qwen3-4B-Instruct-2507",
+      created_at: null,
+    },
+  ],
+  lineage: {
+    nodes: [
+      { id: "Qwen3-4B", kind: "base" },
+      { id: "data-fixture", kind: "dataset" },
+      { id: "train-cfg-fixture", kind: "config" },
+      { id: "merged-bf16", kind: "model", cosign_signed: true },
+      { id: "awq-w4a16", kind: "quant", cosign_signed: true },
+      { id: "gguf-q4km", kind: "quant", cosign_signed: false },
+    ],
+    edges: [
+      { from: "Qwen3-4B", to: "merged-bf16", label: "qlora+dora" },
+      { from: "data-fixture", to: "merged-bf16", label: "sft" },
+      { from: "train-cfg-fixture", to: "merged-bf16", label: "config" },
+      { from: "merged-bf16", to: "awq-w4a16", label: "llm-compressor" },
+      { from: "merged-bf16", to: "gguf-q4km", label: "imatrix" },
+    ],
+  },
+};
+
+/** One telemetry frame, shaped like the API's snapshot payload. */
+const TELEMETRY_FRAMES = [
+  JSON.stringify({
+    source: "fixture-edge",
+    ts: "2026-07-20T09:31:00Z",
+    watts: 38.4,
+    temp_c: 54.2,
+    gpu_util_pct: null,
+    tokens_per_second: 12.6,
+    mem_used_gb: 3.1,
+  }),
+  JSON.stringify({
+    source: "fixture-edge",
+    ts: "2026-07-20T09:31:05Z",
+    watts: 41.9,
+    temp_c: 56.8,
+    gpu_util_pct: null,
+    tokens_per_second: 13.1,
+    mem_used_gb: 3.2,
+  }),
+];
+
+/** A bilingual assistant reply, streamed the way the real proxy streams it. */
+function chatStreamBody(): string {
+  const reply = [
+    "يخضع حساب التوفير ",
+    "لمعدل فائدة سنوي ",
+    "قدره 2.75% وفقاً ",
+    "لتعليمات المصرف المركزي. ",
+    "In short: 2.75% APR, ",
+    "subject to CBUAE rules.",
+  ];
+  const chunks = reply.map((content) =>
+    JSON.stringify({
+      id: "chatcmpl-fixture",
+      object: "chat.completion.chunk",
+      choices: [{ index: 0, delta: { content }, finish_reason: null }],
+    }),
+  );
+  const final = JSON.stringify({
+    object: "sanad.final",
+    x_sanad: {
+      ttft_ms: 180,
+      tokens_per_second: 33.4,
+      detected_lang: "mixed",
+      sovereign: false,
+      upstream: "vllm",
+    },
+  });
+  return `${[...chunks, final].map((c) => `data: ${c}`).join("\n\n")}\n\ndata: [DONE]\n\n`;
+}
+
+/**
+ * Route every endpoint the dashboard reads.
+ *
+ * `/v1/telemetry/stream` is served by stubbing EventSource rather than by fulfilling the route:
+ * a fulfilled response is a *complete* one, so the stream would close immediately, flip the page's
+ * connected badge to false and trigger backoff reconnects — turning the snapshot into a race. The
+ * stub stays open, which is what a real telemetry stream does. `subscribe()`'s own reconnect logic
+ * is covered by unit tests, not here.
+ */
+export async function installApiFixtures(page: Page): Promise<void> {
+  await page.route("**/v1/models", (route) => route.fulfill({ json: MODELS }));
+  await page.route("**/v1/tokenize/fertility", (route) =>
+    route.fulfill({ path: FERTILITY, contentType: "application/json" }),
+  );
+  await page.route("**/v1/eval/runs", (route) => route.fulfill({ json: EVAL_RUNS }));
+  await page.route("**/v1/eval/runs/*", (route) => route.fulfill({ json: EVAL_RUN_DETAIL }));
+  await page.route("**/v1/registry/artifacts", (route) => route.fulfill({ json: REGISTRY }));
+  await page.route("**/v1/chat/completions", (route) =>
+    route.fulfill({ contentType: "text/event-stream", body: chatStreamBody() }),
+  );
+
+  await page.addInitScript((frames: string[]) => {
+    class StubEventSource {
+      onopen: ((e: Event) => void) | null = null;
+      onmessage: ((e: MessageEvent) => void) | null = null;
+      onerror: ((e: Event) => void) | null = null;
+      readyState = 1;
+      constructor(public url: string) {
+        setTimeout(() => {
+          this.onopen?.(new Event("open"));
+          for (const data of frames) {
+            this.onmessage?.(new MessageEvent("message", { data }));
+          }
+        }, 0);
+      }
+      close(): void {
+        this.readyState = 2;
+      }
+      addEventListener(): void {}
+      removeEventListener(): void {}
+    }
+    (window as unknown as { EventSource: unknown }).EventSource = StubEventSource;
+  }, TELEMETRY_FRAMES);
+}

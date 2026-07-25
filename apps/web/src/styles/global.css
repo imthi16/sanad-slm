@@ -46,8 +46,12 @@ body {
 }
 /* Ruqaa draws small for its em, so an Arabic heading set at the same font-size as its Latin
    counterpart reads as the smaller of the two. Matching x-heights instead of font-sizes is what
-   makes the two scripts land as equals (prime directive 3). */
-:lang(ar) .font-display,
+   makes the two scripts land as equals (prime directive 3).
+
+   Scoped to the element's *own* language, never `:lang(ar) .font-display`: a descendant
+   combinator would also catch `lang="en"` children inside an Arabic page — which is what made
+   the wordmark's Latin half fall back to a generic serif in Arabic mode. `:lang()` already
+   matches on inherited language, so the descendant form buys nothing and breaks mixed markup. */
 .font-display:lang(ar) {
   font-family: var(--font-ar-display);
   font-variation-settings: normal;
