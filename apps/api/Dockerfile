@@ -10,6 +10,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev
 
 FROM python:3.12-slim-bookworm
+# Bookworm (not trixie) so the runtime glibc matches the uv builder stage above; apply the
+# distro's available security updates so Trivy's fixable-CVE gate has nothing to report.
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 RUN groupadd -r sanad && useradd -r -g sanad sanad
 WORKDIR /app
 COPY --from=build --chown=sanad:sanad /app /app
