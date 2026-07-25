@@ -35,7 +35,7 @@ That is the tax this project measures, and the rule under the sentence is where 
 > **As of 2026-07-25 — the platform is built and gated; the model pipeline has not run.**
 >
 > Scaffold, FastAPI gateway, React dashboard, CI and every quality gate are green
-> (`just check`, 76 tests across three stacks). No data ingested, no model trained, no eval
+> (`just check`, 85 tests across three stacks). No data ingested, no model trained, no eval
 > report produced. Every results table below is therefore **deliberately empty** — see
 > [the honest-claims policy](#results). Next milestone: **P1, data.**
 
@@ -353,7 +353,7 @@ Everything below runs in CI and locally via `just check` — **currently green e
 |---|---|---|
 | `ml/` | ruff · mypy --strict · pytest | **16 passed** — schema validators, PII scan, license gate blocks a planted non-commercial record |
 | `apps/api` | ruff · mypy --strict · pytest · schemathesis | **34 passed, 92% coverage** — SSE chunk integrity, PII scrubbing (AR+EN digits), sovereign config forcing; gate is ≥ 80% |
-| `apps/web` | biome · tsc --strict · vitest · Playwright | **13 unit + 13 e2e** — grapheme buffering, atlas shaping safety, numeral systems; RTL+LTR snapshots for all six pages |
+| `apps/web` | biome · tsc --strict · vitest · Playwright | **13 unit + 22 e2e** — grapheme buffering, atlas shaping safety, numeral systems; RTL+LTR snapshots for all six pages against fixtures; deterministic palette and dual-script font assertions |
 | data | `just data-gate` | licenses ∈ {Apache-2.0, CC-BY-4.0, MIT} for the commercial profile |
 | sovereignty | `just verify-no-cdn` | no fetchable external origins in `web/dist` |
 | quantization | `ppl_gate.py` | ΔPPL ≤ 3% / 5% per language; ArabicMMLU drift ≤ 1 pt |

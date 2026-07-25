@@ -711,7 +711,18 @@ UI/tokenizer/3D-shared state only; generated client from OpenAPI (`just api-type
 - Numerals: `Intl.NumberFormat(locale)`; a settings toggle for Eastern Arabic numerals
   (`ar-u-nu-arab` — the UAE/MSA Arabic-Indic digits ٠١٢٣; CLDR `arabext` is the
   Persian/Urdu set and is wrong here) in AR mode.
-- Playwright captures RTL **and** LTR snapshots for every page; both must pass.
+- Playwright captures RTL **and** LTR snapshots for every page, **served from
+  `e2e/fixtures/api.ts`** so the baselines cover populated layouts rather than empty states.
+- **Palette and typeface regressions get deterministic assertions, not pixel diffing**
+  (`e2e/design-tokens.spec.ts`). Screenshot comparison scores each pixel against `threshold`
+  before counting it toward `maxDiffPixelRatio`, so one dark ground sits within tolerance of
+  another: the entire ADR-0005 palette change moved only 2 of 12 baselines. Tolerance is not the
+  lever to tighten — baselines are authored on a dev machine and compared on an ubuntu runner, so
+  the headroom absorbs font rasterisation. Assert computed style instead.
+- **Language-scoped CSS uses `:lang()` on the element, never as a descendant combinator.**
+  `:lang(ar) .font-display` also captures `lang="en"` children inside an Arabic page — that is
+  what made the wordmark's Latin half fall back to a generic serif. `:lang()` already matches on
+  inherited language, so the descendant form buys nothing and breaks mixed-script markup.
 
 ### 8.7 Frontend quality bars
 

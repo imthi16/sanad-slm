@@ -125,8 +125,55 @@ jobs:
       - name: ansible-lint
         run: pipx run ansible-lint infra/ansible || true
 
+  action-refs:
+    # A `uses:` pointing at a tag that does not exist fails the job during "Set up job",
+    # before any step runs and before any log the UI surfaces clearly. That is how
+    # aquasecurity/trivy-action@0.29.0 (real tags carry a `v` prefix) kept `images` red for
+    # three merges. Resolving every reference up front turns that into a named failure.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: every `uses:` resolves to a real tag, branch or commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          fail=0
+          # Capture the whole `uses:` value, not owner/repo@ref only: nested actions and reusable
+          # workflows are `owner/repo/path/to/action@ref`, and matching `@` right after the repo
+          # name skips them — which would leave exactly the blind spot this job exists to close.
+          # Anchored to the start of the line so `uses:` appearing in prose (a step name, a
+          # comment) is not mistaken for a key.
+          refs=$(grep -rhoE '^[[:space:]]*-?[[:space:]]*uses:[[:space:]]*[^[:space:]#]+' \
+                   .github/workflows/ \
+                 | sed -E 's/^[[:space:]]*-?[[:space:]]*uses:[[:space:]]*//' | sort -u)
+          echo "parsed $(printf '%s\n' "$refs" | wc -l) references"
+          # read line by line rather than relying on word-splitting an unquoted variable
+          while IFS= read -r ref; do
+            [ -z "$ref" ] && continue
+            case "$ref" in
+              ./*|docker://*) echo "skip     $ref (local or docker action)"; continue ;;
+              *@*) ;;
+              *) echo "UNPINNED $ref (no @ref)"; fail=1; continue ;;
+            esac
+            spec="${ref%@*}"                     # owner/repo[/path…]
+            version="${ref##*@}"                 # tag, branch or commit sha
+            owner=$(printf '%s' "$spec" | cut -d/ -f1)
+            repo=$(printf '%s' "$spec" | cut -d/ -f2)
+            if [ -z "$owner" ] || [ -z "$repo" ]; then
+              echo "BROKEN   $ref (not owner/repo)"; fail=1; continue
+            fi
+            if gh api "repos/$owner/$repo/git/ref/tags/$version" >/dev/null 2>&1 \
+            || gh api "repos/$owner/$repo/git/ref/heads/$version" >/dev/null 2>&1 \
+            || gh api "repos/$owner/$repo/commits/$version" >/dev/null 2>&1; then
+              echo "ok       $ref"
+            else
+              echo "BROKEN   $ref"; fail=1
+            fi
+          done <<< "$refs"
+          exit $fail
+
   images:
-    # build → scan → SBOM → sign → push (push only on main)
+    # build → scan → SBOM, then sign+push only where a registry actually exists.
     if: github.event_name == 'push'
     needs: [python-api, web]
     runs-on: ubuntu-latest
@@ -135,6 +182,12 @@ jobs:
         include:
           - { name: sanad-api, context: apps/api }
           - { name: sanad-web, context: apps/web }
+    env:
+      # Build and scan against a local tag so the security gates do not depend on a registry.
+      # Harbor is self-hosted and does not exist on the zero-cost track (ADR-0003), so the
+      # publish steps below are skipped unless HARBOR_HOST is configured. Skipped, not faked:
+      # a green tick here means the image really was built, scanned and SBOM'd.
+      LOCAL_TAG: sanad/${{ matrix.name }}:${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -142,27 +195,33 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
-          tags: ${{ vars.HARBOR_HOST }}/sanad/${{ matrix.name }}:${{ github.sha }}
+          tags: ${{ env.LOCAL_TAG }}
           load: true
       - name: trivy scan (0 high/critical)
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ vars.HARBOR_HOST }}/sanad/${{ matrix.name }}:${{ github.sha }}
+          image-ref: ${{ env.LOCAL_TAG }}
           severity: HIGH,CRITICAL
           exit-code: "1"
       - name: syft SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: ${{ vars.HARBOR_HOST }}/sanad/${{ matrix.name }}:${{ github.sha }}
+          image: ${{ env.LOCAL_TAG }}
           artifact-name: ${{ matrix.name }}-sbom.spdx.json
-      - name: login harbor
+      - name: publish to Harbor (only when a registry is configured)
+        if: vars.HARBOR_HOST != ''
         uses: docker/login-action@v3
         with:
           registry: ${{ vars.HARBOR_HOST }}
           username: ${{ secrets.HARBOR_ROBOT_USER }}
           password: ${{ secrets.HARBOR_ROBOT_TOKEN }}
-      - name: push
-        run: docker push ${{ vars.HARBOR_HOST }}/sanad/${{ matrix.name }}:${{ github.sha }}
-      - name: cosign sign
+      - name: install cosign
+        if: vars.HARBOR_HOST != ''
         uses: sigstore/cosign-installer@v3
-      - run: cosign sign --yes ${{ vars.HARBOR_HOST }}/sanad/${{ matrix.name }}:${{ github.sha }}
+      - name: retag, push and sign
+        if: vars.HARBOR_HOST != ''
+        run: |
+          remote="${{ vars.HARBOR_HOST }}/sanad/${{ matrix.name }}:${{ github.sha }}"
+          docker tag "$LOCAL_TAG" "$remote"
+          docker push "$remote"
+          cosign sign --yes "$remote"
