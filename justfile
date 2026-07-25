@@ -34,6 +34,7 @@ data:
     cd {{ML}} && uv run python data/scripts/langid.py data/processed
     cd {{ML}} && uv run python data/scripts/dedup.py data/processed
     cd {{ML}} && uv run python data/scripts/split.py
+    cd {{ML}} && uv run python data/scripts/calib.py
     cd {{ML}} && uv run python data/scripts/manifest.py build
 
 # license/provenance CI gate (fails on non-commercial records in a commercial manifest)
