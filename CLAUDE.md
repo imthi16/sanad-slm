@@ -456,7 +456,12 @@ hygiene, BALSAM-style).
   (`human_validation.md` protocol); report human↔judge κ. **No judge-based claim ships without
   this number** (prime directive 5).
 
-**(d) Tokenizer fertility (`fertility/measure.py`):** tokens/word for {Qwen3, jais-family, ALLaM,
+**(d) Tokenizer fertility (`fertility/measure.py`):** run `just sync-tokenizers` first — it
+fetches the five `tokenizer.json` files (**tokenizers only, never weights**) into
+`out/tokenizers/<org>__<model>/`, the layout `measure.py` and the API's `tokenizers_dir` both
+expect, and records the resolved revision sha per tokenizer in `tokenizers.manifest.json` so a
+published tokens/word figure is tied to a tokenizer version. Sovereign mode cannot sync (no hub) —
+populate the directory while online and copy it to the air-gapped host. tokens/word for {Qwen3, jais-family, ALLaM,
 Falcon-H1, Llama-3.2} tokenizers over three fixed corpora (MSA news 10k words, banking-domain 5k,
 English 10k). Outputs `fertility.json` → consumed by the API and the 3D hero. This is the
 project's signature insight: fertility ≈ latency ≈ cost ≈ effective context for Arabic.
@@ -995,6 +1000,11 @@ rerun train against different weights, so neither passes the gate.
   produce a complete table until that approval lands. Request it early; it is the long-lead item.
 - `inceptionai/jais-family-6p7b-chat` is **`gated: auto`** — accept the terms once while online and
   the download proceeds; the sync needs an `HF_TOKEN` present.
+
+**ALLaM ships no `tokenizer.json`** — sentencepiece-only layout. Both fertility consumers read
+`tokenizer.json` and nothing else (the API's loader has no sentencepiece path at all), so ALLaM is
+simply absent from the fertility table unless converted. `sync_tokenizers.py` converts it via
+`transformers` (`train` extra); without that extra it reports the requirement instead of failing.
 
 **ALLaM moved orgs**: `ALLaM-AI/` → `humain-ai/`. Hugging Face serves a 307 for the old path, so a
 browser follows it silently, but an offline mirror pass resolves ids literally and would fail. The

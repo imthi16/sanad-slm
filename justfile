@@ -79,6 +79,10 @@ judge run_id:
     cd {{ML}} && uv run python evals/judge/agreement.py --run-id {{run_id}}
 
 # regenerate fertility.json (consumed by API + 3D hero)
+# fetch the five tokenizer.json files fertility needs (tokenizers only, never weights)
+sync-tokenizers:
+    cd {{ML}} && uv run python evals/fertility/sync_tokenizers.py
+
 fertility:
     cd {{ML}} && uv run python evals/fertility/measure.py --out evals/reports/fertility.json
 
