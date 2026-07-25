@@ -6,15 +6,11 @@
  * simultaneously and the cheapest is marked, so the Arabic tax is a column you read rather than
  * a sequence you remember. Selection only chooses which row the Specimen's rule illustrates.
  */
-import { formatNumber } from "@/lib/format";
+import { formatMetric, formatNumber } from "@/lib/format";
 import { TOKENIZER_ORDER, useTokenizerStore } from "@/store/tokenizer";
 import { useUiStore } from "@/store/ui";
 import { clsx } from "clsx";
 import { useTranslation } from "react-i18next";
-
-// A comparison column only reads as a column if the decimals line up: ×1 next to ×1.65 makes
-// the cheapest row look like a different kind of number.
-const FIXED_2 = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
 
 export function TokenizerLedger() {
   const { t } = useTranslation();
@@ -78,7 +74,7 @@ export function TokenizerLedger() {
               {tok ? formatNumber(tok.tokens, lang, numerals) : "—"}
             </span>
             <span className={clsx("text-end text-sm", tok ? "metric" : "unmeasured")}>
-              {tok ? formatNumber(tok.tokens_per_word, lang, numerals, FIXED_2) : "—"}
+              {tok ? formatMetric(tok.tokens_per_word, lang, numerals, 2) : "—"}
             </span>
             <span
               className={clsx(
@@ -86,9 +82,7 @@ export function TokenizerLedger() {
                 tok?.cost_vs_best ? "metric" : "unmeasured",
               )}
             >
-              {tok?.cost_vs_best
-                ? `×${formatNumber(tok.cost_vs_best, lang, numerals, FIXED_2)}`
-                : "—"}
+              {tok?.cost_vs_best ? `×${formatMetric(tok.cost_vs_best, lang, numerals, 2)}` : "—"}
             </span>
           </button>
         );
