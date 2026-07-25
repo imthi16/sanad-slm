@@ -84,8 +84,11 @@ jobs:
     defaults: { run: { working-directory: apps/web } }
     steps:
       - uses: actions/checkout@v4
-      # version comes from apps/web/package.json `packageManager` — do not also pass `version`
+      # Version comes from apps/web/package.json `packageManager`, so it cannot drift from the
+      # image. The action resolves that file relative to the repo root, not the job's
+      # working-directory, so it has to be named explicitly.
       - uses: pnpm/action-setup@v4
+        with: { package_json_file: apps/web/package.json }
       - uses: actions/setup-node@v4
         with: { node-version: "${{ env.NODE_VERSION }}", cache: pnpm, cache-dependency-path: apps/web/pnpm-lock.yaml }
       - run: pnpm install --frozen-lockfile
