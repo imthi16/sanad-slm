@@ -1,7 +1,15 @@
 # SOPS + age — git-native encrypted secrets, no cloud KMS dependency (CLAUDE.md §3.5).
-# Replace the placeholder recipient with the team age public key(s) before first encryption:
-#   age-keygen -o ~/.config/sops/age/keys.txt
+#
+# The `age:` value below is a PUBLIC key: safe to commit, and the only thing needed to *encrypt*.
+# Decryption needs the matching private key, which lives outside the repo at
+# ~/.config/sops/age/keys.txt (mode 0600) and must never be committed.
+#
+# Adding a machine or a teammate: append their public key, comma-separated, then re-encrypt the
+# existing files so the new recipient can read them — `sops updatekeys secrets/*.sops.yaml`.
+# Editing this list alone does not re-key anything already encrypted.
 creation_rules:
   - path_regex: secrets/.*\.sops\.yaml$
-    age: "age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq" # PLACEHOLDER — replace
+    age: "age1y3vkjuljwe8chqk7ca6cf8pqa09mcp7upsxle6k425eukkv9ks8sqvxw92"
+    # Values under these keys are encrypted; other keys stay readable so a diff still shows
+    # which setting changed without exposing the value.
     encrypted_regex: "^(data|stringData|password|token|secret|key|.*_KEY|.*_TOKEN|.*_PASSWORD)$"
