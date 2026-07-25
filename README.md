@@ -429,7 +429,7 @@ The working agreements ([CLAUDE.md §14](./CLAUDE.md)), abridged:
 
 Sanad stands on excellent open work: [Qwen3](https://huggingface.co/Qwen) (Apache-2.0 base
 model) · [CIDAR](https://huggingface.co/datasets/arbml/CIDAR) by ARBML (native Arabic
-instructions) · [ALLaM](https://huggingface.co/ALLaM-AI) and
+instructions) · [ALLaM](https://huggingface.co/humain-ai) and
 [jais](https://huggingface.co/inceptionai) (Arabic-native comparators and judges) ·
 [Falcon-H1](https://huggingface.co/tiiuae) by TII (SOTA reference) ·
 [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness) by EleutherAI ·

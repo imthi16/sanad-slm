@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # ── pins ────────────────────────────────────────────────────────────────────
-LM_EVAL_REV="${LM_EVAL_REV:-<pinned-commit>}"   # e.g. a1b2c3d… — pin before first eval run
+LM_EVAL_REV="${LM_EVAL_REV:-6d642546f4688648fced259eb3302efd36ece5af}" # v0.4.12 · verified 2026-07-25
 TASKS="arabicmmlu,aratrust,madinahqa,alrage"
 NUM_FEWSHOT=0
 # ────────────────────────────────────────────────────────────────────────────
@@ -16,7 +16,7 @@ RUN_ID="${2:-$(date -u +%Y%m%dT%H%M%SZ)}"
 ML_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT="$ML_ROOT/evals/reports/$RUN_ID/$(basename "$MODEL")"
 
-if [[ "$LM_EVAL_REV" == "<pinned-commit>" ]]; then
+if [[ "$LM_EVAL_REV" == *"<"* ]]; then
     echo "✗ LM_EVAL_REV is unpinned — set the exact EleutherAI/lm-evaluation-harness commit" >&2
     exit 1
 fi

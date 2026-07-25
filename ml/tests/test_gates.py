@@ -64,3 +64,25 @@ def test_gate_blocks_planted_noncommercial_record(
 
     with pytest.raises(SystemExit, match="data-gate FAILED"):
         manifest_mod.gate("commercial")
+
+
+def test_train_config_revision_must_be_a_commit_sha(tmp_path: Path) -> None:
+    """The reproducibility gate rejects anything that can move (prime directive 4).
+
+    It previously matched only the literal placeholder, so `revision: main` — or a tag, which
+    upstream is free to repoint — sailed through and a rerun could silently train against
+    different weights.
+    """
+    from sft import load_config
+
+    def cfg_with(revision: str) -> Path:
+        p = tmp_path / f"cfg-{abs(hash(revision))}.yaml"
+        p.write_text(f'base_model: Qwen/Qwen3-4B-Instruct-2507\nrevision: "{revision}"\n')
+        return p
+
+    pinned = "cdbee75f17c01a7cc42f958dc650907174af0554"
+    assert load_config(cfg_with(pinned))["revision"] == pinned
+
+    for movable in ("<pin-hf-commit-sha>", "main", "v0.4.12", pinned.upper(), pinned[:39], ""):
+        with pytest.raises(SystemExit, match="commit sha"):
+            load_config(cfg_with(movable))

@@ -18,9 +18,11 @@ architecture decisions change (and add an ADR in `docs/adr/`).
 > snapshots pass for all 6 routes (baselines in `apps/web/e2e/rtl-ltr.spec.ts-snapshots/`).
 > The P1–P5 *source* is written but the pipeline has never been executed: no data ingested
 > (MANIFEST zeroed), domain eval holds 12/300 items, no reports, no model artifacts.
-> **Next: P1 (data).** Fill placeholder pins before their phases — HF revision sha (train
-> config, P2), llama.cpp sha (P3: `ml/configs/quant/gguf-q4km.yaml`), `LM_EVAL_REV` (P4),
-> age recipient in `.sops.yaml` (first secret). Remove this notice when P1 lands.
+> **Next: P1 (data).** The Qwen3 revision, llama.cpp commit and `LM_EVAL_REV` pins are filled and
+> verified (§15). Two prerequisites remain and neither is automatable: the **age recipient in
+> `.sops.yaml`** needs the owner's own key (`age-keygen`), and **`meta-llama/Llama-3.2-3B-Instruct`
+> is manually gated** — request access early, since its tokenizer is one of the five in the
+> fertility table. Remove this notice when P1 lands.
 
 ---
 
@@ -948,7 +950,7 @@ server story · commercial licensing hard-requirement → Apache-2.0 matrix only
 | Asset | ID | License | Role |
 |---|---|---|---|
 | Qwen3-4B-Instruct | `Qwen/Qwen3-4B-Instruct-2507` (pin rev) | Apache-2.0 | primary base |
-| ALLaM-7B | `ALLaM-AI/ALLaM-7B-Instruct-preview` | Apache-2.0 | Arabic-native comparator + judge |
+| ALLaM-7B | `humain-ai/ALLaM-7B-Instruct-preview` | Apache-2.0 | Arabic-native comparator + judge |
 | jais-family-6.7b | `inceptionai/jais-family-6p7b-chat` | Apache-2.0 | Arabic-native comparator |
 | Falcon-H1-Arabic 3B/7B | TII HF org (pin) | Falcon-LLM License | SOTA comparator + judge (7B) |
 | CIDAR | `arbml/CIDAR` | Apache-2.0 | native instruction core |
@@ -956,8 +958,32 @@ server story · commercial licensing hard-requirement → Apache-2.0 matrix only
 | AraFinNews | (quarantine) | **non-commercial** | research-only experiments |
 | lm-evaluation-harness | EleutherAI @ pinned commit | MIT | harness |
 
-*Model IDs/revisions above were current as of early 2026 — verify each on Hugging Face at
-bootstrap time and pin the exact commit SHA into the train config; newer checkpoints may exist.*
+**Verified on Hugging Face 2026-07-25.** Pins now in the repo:
+
+| Pin | Value | Consumed by |
+|---|---|---|
+| Qwen3-4B revision | `cdbee75f17c01a7cc42f958dc650907174af0554` | `configs/train/qwen3-4b-qlora-dora.yaml` (P2) |
+| llama.cpp commit | `c0bc8591e8815c63cb01dd3f051a8b0df02501c9` (release `b10107`) | `configs/quant/gguf-q4km.yaml` (P3) |
+| lm-eval commit | `6d642546f4688648fced259eb3302efd36ece5af` (`v0.4.12`) | `evals/harness/run_lm_eval.sh` (P4) |
+
+`sft.py` enforces that `revision` is a 40-char lowercase commit sha — a branch or tag would let a
+rerun train against different weights, so neither passes the gate.
+
+**Two access prerequisites, both discovered at verification and neither automatable:**
+
+- `meta-llama/Llama-3.2-3B-Instruct` is **`gated: manual`** — Meta approves each request by hand.
+  Its tokenizer is one of the five in the fertility comparison (§5.4d), so `just fertility` cannot
+  produce a complete table until that approval lands. Request it early; it is the long-lead item.
+- `inceptionai/jais-family-6p7b-chat` is **`gated: auto`** — accept the terms once while online and
+  the download proceeds; the sync needs an `HF_TOKEN` present.
+
+**ALLaM moved orgs**: `ALLaM-AI/` → `humain-ai/`. Hugging Face serves a 307 for the old path, so a
+browser follows it silently, but an offline mirror pass resolves ids literally and would fail. The
+table and all four code references were corrected; treat this as the standing reason to re-verify
+ids rather than trust them.
+
+*Everything else above was current as of early 2026 — re-verify on Hugging Face at bootstrap time,
+since newer checkpoints may exist.*
 
 ---
 *End of CLAUDE.md — if you're Claude Code and you read this far: run `just --list`, pick the

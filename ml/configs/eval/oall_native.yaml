@@ -12,7 +12,7 @@ log_samples: true
 models:
   - Qwen/Qwen3-4B-Instruct-2507 # base (pin rev)
   - out/merged-bf16 # fine-tuned
-  - ALLaM-AI/ALLaM-7B-Instruct-preview
+  - humain-ai/ALLaM-7B-Instruct-preview
   - inceptionai/jais-family-6p7b-chat
   - tiiuae/Falcon-H1-3B-Instruct # benchmark comparator ONLY (Falcon-LLM License)
   - tiiuae/Falcon-H1-7B-Instruct # benchmark comparator ONLY

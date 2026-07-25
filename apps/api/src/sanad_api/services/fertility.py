@@ -23,7 +23,7 @@ log = structlog.get_logger()
 KNOWN_TOKENIZERS = {
     "qwen3": "Qwen__Qwen3-4B-Instruct-2507",
     "jais-family": "inceptionai__jais-family-6p7b-chat",
-    "allam": "ALLaM-AI__ALLaM-7B-Instruct-preview",
+    "allam": "humain-ai__ALLaM-7B-Instruct-preview",
     "falcon-h1": "tiiuae__Falcon-H1-7B-Instruct",
     "llama-3.2": "meta-llama__Llama-3.2-3B-Instruct",
 }
