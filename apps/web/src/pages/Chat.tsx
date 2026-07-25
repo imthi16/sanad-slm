@@ -132,7 +132,7 @@ export default function Chat() {
           <select
             value={model}
             onChange={(e) => setModel(e.target.value)}
-            className="rounded-md border border-dune-700 bg-dune-900 px-2 py-1.5 text-sand-100"
+            className="rounded-md border border-ink-700 bg-ink-900 px-2 py-1.5 text-sand-100"
             dir="ltr"
           >
             {(models.data?.data ?? [{ id: "sanad-bank-awq" }]).map((m) => (
@@ -164,7 +164,7 @@ export default function Chat() {
           onChange={(e) => setInput(e.target.value)}
           placeholder={t("chat.placeholder")}
           aria-label={t("chat.placeholder")}
-          className="flex-1 rounded-md border border-dune-700 bg-dune-900 px-3 py-2.5 text-sm
+          className="flex-1 rounded-md border border-ink-700 bg-ink-900 px-3 py-2.5 text-sm
                      text-sand-100 placeholder:text-sand-400/60"
         />
         {busy ? (

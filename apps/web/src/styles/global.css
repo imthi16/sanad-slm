@@ -1,21 +1,25 @@
 @import "./tokens.css";
 
-/* Self-hosted fonts only — no CDN, ever (sovereign gate `just verify-no-cdn`). */
-@import "@fontsource/space-grotesk/latin-400.css";
-@import "@fontsource/space-grotesk/latin-700.css";
-@import "@fontsource-variable/inter/index.css";
+/* Self-hosted, script-subsetted fonts only — no CDN, ever (sovereign gate `just verify-no-cdn`).
+   Fraunces loads all four axes (120 KB, latin subset): opsz is what lets the browser optically
+   size the display face automatically, and it is the whole reason to pick a variable serif. */
+@import "@fontsource-variable/fraunces/full.css";
+@import "@fontsource/aref-ruqaa/arabic-700.css";
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
 @import "@fontsource/ibm-plex-sans-arabic/arabic-400.css";
 @import "@fontsource/ibm-plex-sans-arabic/arabic-500.css";
-@import "@fontsource/ibm-plex-sans-arabic/arabic-700.css";
-@import "@fontsource/amiri/arabic-400.css";
-@import "@fontsource/amiri/arabic-700.css";
+@import "@fontsource/ibm-plex-sans-arabic/arabic-600.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
 
 :root {
   color-scheme: dark;
 }
 
 body {
-  background: var(--color-dune-950);
+  background: var(--color-ink-950);
   color: var(--color-sand-100);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
@@ -28,36 +32,120 @@ body {
   line-height: 1.8;
 }
 
+/* ── Display type ──────────────────────────────────────────────────────────────
+   Latin display is Fraunces with WONK engaged — the axis that swaps in the
+   splayed, calligraphic terminals. Arabic display is Aref Ruqaa, a Ruqaa hand
+   with matching stroke contrast from an unrelated tradition. */
+/* WONK swaps in the splayed calligraphic terminals; SOFT 0 keeps them sharp. opsz is left
+   unset on purpose — `font-optical-sizing: auto` then tracks it to the rendered size, so h1
+   gets display contrast and h2 does not without either declaring a number. */
 .font-display {
   font-family: var(--font-display);
+  font-variation-settings: "WONK" 1, "SOFT" 0;
+  font-weight: 400;
 }
+/* Ruqaa draws small for its em, so an Arabic heading set at the same font-size as its Latin
+   counterpart reads as the smaller of the two. Matching x-heights instead of font-sizes is what
+   makes the two scripts land as equals (prime directive 3). */
 :lang(ar) .font-display,
 .font-display:lang(ar) {
   font-family: var(--font-ar-display);
+  font-variation-settings: normal;
+  font-weight: 700;
+  font-size-adjust: 0.5;
 }
 
-/* Fluid display type: 2.2–4.4rem (§8.2). */
+/* Fluid display type. Ruqaa carries tall ascenders and deep descenders, so the
+   Arabic cut gets more leading and no negative tracking. */
 .text-display {
-  font-size: clamp(2.2rem, 1.2rem + 3.5vw, 4.4rem);
-  line-height: 1.1;
-  letter-spacing: -0.01em;
+  font-size: clamp(2.1rem, 1rem + 3.9vw, 4.25rem);
+  line-height: 1.06;
+  letter-spacing: -0.021em;
 }
 .text-display:lang(ar) {
-  line-height: 1.35;
+  font-size: clamp(1.9rem, 0.9rem + 3.4vw, 3.6rem);
+  line-height: 1.55;
   letter-spacing: 0;
 }
 
-/* Brass only on live numbers, active nav, token counter — never large fills. */
+/* ── Structural devices ────────────────────────────────────────────────────────
+   The eyebrow is the page's one repeated label form. In Latin it is spaced small
+   caps; uppercase and letter-spacing are meaningless in Arabic, so the Arabic cut
+   drops both and leans on weight instead. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--color-sand-400);
+}
+.eyebrow:lang(ar) {
+  font-family: var(--font-ar);
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* ── The Specimen (§8.4a) ──────────────────────────────────────────────────────
+   One text node, two display faces: Ruqaa has no Latin glyphs, so per-glyph font
+   fallback sets the Arabic run in Ruqaa and the Latin run in Fraunces without any
+   element splitting — which is what keeps the Arabic joins intact. */
+/* Fraunces leads the stack so the line box uses its (predictable) metrics, which is what the
+   rule's placement is calibrated against; Arabic falls through to Ruqaa. `font-size-adjust`
+   then scales Ruqaa up to Fraunces' x-height — without it Ruqaa sets visibly smaller than the
+   Latin beside it, which would put the Arabic second in a page arguing it comes first. */
+.specimen {
+  font-family: var(--font-display), var(--font-ar-display), serif;
+  font-variation-settings: "WONK" 1, "SOFT" 0;
+  font-size-adjust: 0.5;
+  font-size: clamp(1.3rem, 0.8rem + 1.75vw, 2.25rem);
+  line-height: 1.9;
+  color: var(--color-sand-100);
+  text-wrap: pretty;
+}
+
+/* One dash per token. The gap between dashes is the cut. */
+.specimen-dash {
+  position: absolute;
+  height: 3px;
+  color: var(--color-sand-100); /* Arabic run: paper */
+  background: currentColor;
+  transition: width var(--duration-slow) var(--ease-sanad), left var(--duration-base)
+    var(--ease-sanad), top var(--duration-base) var(--ease-sanad);
+}
+.specimen-dash[data-script="en"] {
+  color: var(--color-pewter-400); /* Latin run */
+}
+.specimen-dash[data-script="mixed"] {
+  color: var(--color-verdigris-400); /* a token that straddles both scripts */
+}
+
+/* Live measured numbers wear the instrument colour and tabular figures. */
 .metric {
-  color: var(--color-brass-400);
+  color: var(--color-verdigris-400);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
+/* A figure that has no measurement behind it yet renders as an em-dash, never a
+   plausible-looking number (prime directive 5). */
+.unmeasured {
+  color: var(--color-sand-400);
+  font-family: var(--font-mono);
+}
+
 .panel {
-  background: var(--color-dune-900);
-  border: 1px solid var(--color-dune-700);
+  background: var(--color-ink-900);
+  border: 1px solid var(--color-ink-700);
   border-radius: var(--radius-panel);
-  box-shadow: var(--shadow-panel);
+}
+
+/* A ruled band: the page's main structural divider, used instead of card borders. */
+.rule-top {
+  border-block-start: 1px solid var(--color-ink-700);
 }
 
 /* Mixed-script inline spans stay isolated so bidi never reorders neighbours (§8.6). */
@@ -67,7 +155,7 @@ body {
 
 /* Visible focus everywhere (§8.7 a11y). */
 :focus-visible {
-  outline: 2px solid var(--color-brass-400);
+  outline: 2px solid var(--color-verdigris-400);
   outline-offset: 2px;
   border-radius: 2px;
 }
@@ -79,7 +167,7 @@ body {
   inset-inline-start: 0.5rem;
   z-index: 100;
   padding: 0.5rem 1rem;
-  background: var(--color-dune-900);
+  background: var(--color-ink-900);
   transition: inset-block-start var(--duration-fast) var(--ease-sanad);
 }
 .skip-link:focus {

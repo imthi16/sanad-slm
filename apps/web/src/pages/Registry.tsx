@@ -48,9 +48,9 @@ export default function Registry() {
             <div className="flex items-center justify-between gap-2">
               <span className="font-display" dir="ltr">
                 {a.model_name}
-                <span className="text-brass-400 ms-1">@{a.version}</span>
+                <span className="text-verdigris-400 ms-1">@{a.version}</span>
               </span>
-              <Badge tone={a.cosign_signed ? "teal" : "claret"}>
+              <Badge tone={a.cosign_signed ? "live" : "alarm"}>
                 {a.cosign_signed ? t("registry.signed") : t("registry.unsigned")}
               </Badge>
             </div>
@@ -80,18 +80,18 @@ function LineageChain({ registry, id }: { registry: RegistryResponse | undefined
   if (incoming.length === 0 && outgoing.length === 0) return null;
   return (
     <div
-      className="flex flex-wrap items-center gap-1.5 border-t border-dune-700/60 pt-2 text-xs"
+      className="flex flex-wrap items-center gap-1.5 border-t border-ink-700/60 pt-2 text-xs"
       dir="ltr"
     >
       {incoming.map((e) => (
         <span key={`${e.from}-${e.to}`} className="text-sand-400">
-          <span className="text-teal-400">{e.from}</span> →
+          <span className="text-verdigris-400">{e.from}</span> →
         </span>
       ))}
-      <span className="text-brass-400">{id}</span>
+      <span className="text-verdigris-400">{id}</span>
       {outgoing.map((e) => (
         <span key={`${e.from}-${e.to}`} className="text-sand-400">
-          → <span className="text-teal-400">{e.to}</span>
+          → <span className="text-verdigris-400">{e.to}</span>
         </span>
       ))}
     </div>

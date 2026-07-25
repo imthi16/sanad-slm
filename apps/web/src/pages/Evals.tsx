@@ -79,8 +79,8 @@ export default function Evals() {
               onClick={() => setSelected(r.id)}
               className={`rounded-md border ps-3 pe-3 py-1 text-xs transition-colors duration-150 ${
                 r.id === runId
-                  ? "border-brass-400 text-brass-400"
-                  : "border-dune-700 text-sand-400 hover:text-sand-100"
+                  ? "border-verdigris-400 text-verdigris-400"
+                  : "border-ink-700 text-sand-400 hover:text-sand-100"
               }`}
               dir="ltr"
             >
@@ -100,7 +100,7 @@ export default function Evals() {
                   {detail.data.benchmark_scores.map((s) => (
                     <tr
                       key={`${s.task}-${s.model}-${s.metric}`}
-                      className="border-t border-dune-700/60"
+                      className="border-t border-ink-700/60"
                     >
                       <td className="py-1.5 text-sand-400" dir="ltr">
                         {s.task}
@@ -132,7 +132,7 @@ export default function Evals() {
                   <div className="flex items-baseline gap-4">
                     <span className="metric text-3xl">{fmt(detail.data.judge.headline_final)}</span>
                     <span className="text-xs text-sand-400">/5</span>
-                    <Badge tone={detail.data.judge.human_judge_kappa != null ? "teal" : "claret"}>
+                    <Badge tone={detail.data.judge.human_judge_kappa != null ? "live" : "alarm"}>
                       {detail.data.judge.human_judge_kappa != null
                         ? `${t("evals.humanKappa")}: ${fmt(detail.data.judge.human_judge_kappa)}`
                         : t("evals.humanKappaMissing")}
@@ -144,9 +144,9 @@ export default function Evals() {
                         <span className="w-28 text-sand-400">
                           {t(`evals.judgeDims.${d.dimension}`, d.dimension)}
                         </span>
-                        <div className="h-2 flex-1 rounded-full bg-dune-700/50">
+                        <div className="h-2 flex-1 rounded-full bg-ink-700/50">
                           <div
-                            className="h-2 rounded-full bg-teal-400"
+                            className="h-2 rounded-full bg-verdigris-400"
                             style={{ inlineSize: `${(d.score / 5) * 100}%` }}
                           />
                         </div>

@@ -5,7 +5,7 @@
  * Labels via drei <Text> (troika) in both scripts.
  */
 import arabicFontUrl from "@fontsource/ibm-plex-sans-arabic/files/ibm-plex-sans-arabic-arabic-400-normal.woff?url";
-import latinFontUrl from "@fontsource/space-grotesk/files/space-grotesk-latin-400-normal.woff?url";
+import latinFontUrl from "@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-500-normal.woff?url";
 import { ScrollControls, Text, useScroll } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
@@ -38,7 +38,7 @@ function Core() {
   return (
     <mesh ref={ref}>
       <icosahedronGeometry args={[0.9, 1]} />
-      <meshStandardMaterial color="#26324A" emissive="#C9A227" emissiveIntensity={0.12} wireframe />
+      <meshStandardMaterial color="#3A3229" emissive="#3FBFA4" emissiveIntensity={0.12} wireframe />
     </mesh>
   );
 }
@@ -77,7 +77,7 @@ function PanelStation({ station, index }: { station: Station; index: number }) {
         <planeGeometry args={[1.9, 1.1]} />
         {/* translucent standard material — MeshTransmission is over the GPU budget here (§8.4b) */}
         <meshStandardMaterial
-          color="#141C2B"
+          color="#1F1A15"
           transparent
           opacity={0.72}
           roughness={0.35}
@@ -88,7 +88,7 @@ function PanelStation({ station, index }: { station: Station; index: number }) {
       <Text
         position={[0, 0.12, 0.01]}
         fontSize={0.26}
-        color="#EDE4D3"
+        color="#F4ECDD"
         anchorX="center"
         anchorY="middle"
         direction={isArabic ? "rtl" : "ltr"}
@@ -99,7 +99,7 @@ function PanelStation({ station, index }: { station: Station; index: number }) {
       <Text
         position={[0, -0.24, 0.01]}
         fontSize={0.13}
-        color="#C9A227"
+        color="#3FBFA4"
         anchorX="center"
         anchorY="middle"
         font={latinFontUrl}
@@ -126,7 +126,7 @@ function OrbitContents() {
   return (
     <ScrollControls pages={2} damping={0.2}>
       <ambientLight intensity={0.5} />
-      <pointLight position={[4, 4, 4]} intensity={40} color="#EDE4D3" />
+      <pointLight position={[4, 4, 4]} intensity={40} color="#F4ECDD" />
       <Core />
       {STATIONS.map((s, i) => (
         <PanelStation key={s.key} station={s} index={i} />

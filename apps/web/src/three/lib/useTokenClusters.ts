@@ -3,15 +3,15 @@ import { type FertilityResponse, type TokenizerName, useTokenizerStore } from "@
 /**
  * useTokenClusters (§8.4a): fetches /v1/tokenize/fertility for the current sentence and maps
  * each atlas unit to its token cluster's target position + color. On tokenizer switch the
- * particles regroup — teal clusters for Arabic tokens, sand for English.
+ * particles regroup — paper-cream clusters for Arabic tokens, pewter for English.
  */
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import type { AtlasEntry } from "./glyphAtlas";
 
-export const COLOR_AR = new THREE.Color("#1FA79B"); // teal-400: Arabic tokens
-export const COLOR_EN = new THREE.Color("#B9AC93"); // sand-400: English tokens
+export const COLOR_AR = new THREE.Color("#F4ECDD"); // sand-100: Arabic tokens — the paper colour, matching the Specimen
+export const COLOR_EN = new THREE.Color("#8FA7BD"); // pewter-400: Latin tokens
 
 export interface ClusterTargets {
   /** one target position per atlas entry */

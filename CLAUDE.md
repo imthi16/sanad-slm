@@ -12,7 +12,7 @@ before writing code. When this file and a README disagree, this file wins. Updat
 architecture decisions change (and add an ADR in `docs/adr/`).
 
 > **⚠️ Current repository state (as of 2026-07-15): P0 COMPLETE — `just check` GREEN, RTL/LTR
-> snapshots GREEN.** The full §2 tree exists (see ADR-0002 for in-spec implementation choices),
+> snapshots GREEN.** The full §2 tree exists (see ADR-0002 for in-spec implementation choices, ADR-0005 for the §8 design direction),
 > lockfiles are generated, `just check` passes end-to-end (ruff+mypy+pytest both Python
 > workspaces, biome+tsc+vitest+i18n-sync web, data-gate, verify-no-cdn), and Playwright RTL+LTR
 > snapshots pass for all 6 routes (baselines in `apps/web/e2e/rtl-ltr.spec.ts-snapshots/`).
@@ -246,7 +246,7 @@ bootstrapping, run `uv lock` / `pnpm install` and trust resolution; do not hand-
 | State | zustand v5 (UI/3D shared) + **TanStack Query v5** (server) | ^5 | Query owns caching/retries; zustand bridges DOM ⇄ Canvas |
 | i18n / RTL | react-i18next + `dir` switching + `Intl.Segmenter` | i18next ≥ 24 | Grapheme-safe Arabic streaming (see §8.6) |
 | API types | **@hey-api/openapi-ts** generated client | latest | Types generated from FastAPI's OpenAPI — zero drift |
-| Fonts (self-hosted) | @fontsource: Space Grotesk (Latin display), Inter var (Latin body), IBM Plex Sans Arabic (AR body), Amiri (AR display accents) | latest | No Google Fonts CDN in sovereign mode — ever |
+| Fonts (self-hosted) | @fontsource: Fraunces var (Latin display), Aref Ruqaa (AR display), IBM Plex Sans + Plex Sans Arabic (body/UI, one superfamily), Plex Mono (data/labels) | latest | No Google Fonts CDN in sovereign mode — ever; script-subsetted (ADR-0005) |
 | Lint/format | **Biome** | ≥ 1.9 | Single fast tool replacing eslint+prettier; keep a11y rules on |
 | Tests | Vitest + Testing Library + Playwright (RTL+LTR snapshots) | latest | Bidi regressions are the #1 bug class here |
 
@@ -586,50 +586,63 @@ Alembic migration up/down smoke; coverage gate ≥ 80% on `services/` + `routers
 
 ## 8. Frontend — apps/web (React 19 + R3F 3D dashboard)
 
-### 8.1 Design brief (deliberate, not default)
+### 8.1 Design brief (deliberate, not default) — see ADR-0005
 
 Subject: a sovereign bilingual model platform for Gulf banking. Audience: UAE ML hiring managers
 and researchers who will judge craft in 90 seconds. The page's job: prove Arabic-first
-engineering depth instantly. **The signature element is the Fertility Field hero (§8.4a):** live
-tokenization of real Arabic/English text driving a 3D particle system — the project's core
-technical insight made visible. Everything else stays quiet and disciplined so that one moment
+engineering depth instantly. **The signature element is the Specimen (§8.4a):** the bilingual
+sentence set intact at display size, with a measured rule beneath it broken into one dash per
+token, re-cutting live as you switch tokenizer — the project's core insight as evidence you can
+read, not an effect you watch. Everything else stays quiet and disciplined so that one moment
 carries the identity. Explicitly avoid the stock AI looks (cream+serif+terracotta;
 near-black+acid-green; broadsheet hairlines) — this design's identity comes from **dual-script
-typography treated as material** and a **desert-night palette with brass instrumentation**.
+typography treated as material** and a **lamplit-manuscript ground with rubricator's pigments
+as instrumentation**.
 
 ### 8.2 Design tokens (`src/styles/tokens.css`, Tailwind v4 `@theme`)
 
 ```css
 @import "tailwindcss";
 @theme {
-  /* Palette — "Night Dune": deep blue-slate canvas, sand text, brass + gulf-teal instruments */
-  --color-dune-950: #0E1420;   /* app canvas */
-  --color-dune-900: #141C2B;   /* raised surfaces */
-  --color-dune-700: #26324A;   /* borders, grid lines */
-  --color-sand-100: #EDE4D3;   /* primary text */
-  --color-sand-400: #B9AC93;   /* secondary text */
-  --color-brass-400: #C9A227;  /* accent: metrics, active states — use sparingly */
-  --color-teal-400: #1FA79B;   /* accent 2: Arabic-token color, success */
-  --color-claret-500: #A6453F; /* errors/alerts only */
-  /* Type — dual-script pairing is the identity */
-  --font-display: "Space Grotesk", sans-serif;        /* Latin display */
-  --font-body: "Inter Variable", sans-serif;          /* Latin body */
-  --font-ar: "IBM Plex Sans Arabic", sans-serif;      /* Arabic body/UI */
-  --font-ar-display: "Amiri", serif;                  /* Arabic display accents (hero words) */
-  --radius-panel: 0.75rem;
-  --shadow-panel: 0 1px 0 0 var(--color-dune-700), 0 12px 32px -16px rgb(0 0 0 / .6);
+  /* Palette — "Rubrication": warm ink canvas, rag-paper text, copper-green + red-lead instruments */
+  --color-ink-950: #171310;       /* app canvas — warm ink black */
+  --color-ink-900: #1F1A15;       /* raised surfaces */
+  --color-ink-850: #262019;       /* wells, inset fields */
+  --color-ink-700: #3A3229;       /* hairline rules, grid */
+  --color-ink-600: #4E4437;       /* stronger rule, hover border */
+  --color-sand-100: #F4ECDD;      /* primary text — and the Arabic script's colour */
+  --color-sand-300: #C9BCA5;      /* mid text */
+  --color-sand-400: #A2947E;      /* secondary text, labels */
+  --color-pewter-400: #8FA7BD;    /* Latin script marker (fertility visuals only) */
+  --color-verdigris-400: #3FBFA4; /* the one instrument accent: live numbers, active, pass */
+  --color-cinnabar-400: #E4603F;  /* alarms only: failed gates, stream errors */
+  /* Type — two calligraphic display faces from unrelated traditions, one neutral superfamily under */
+  --font-display: "Fraunces Variable", Georgia, serif; /* Latin display (WONK 1, SOFT 0) */
+  --font-ar-display: "Aref Ruqaa", serif;             /* Arabic display — Ruqaa calligraphy, 700 */
+  --font-body: "IBM Plex Sans", sans-serif;           /* Latin body/UI */
+  --font-ar: "IBM Plex Sans Arabic", sans-serif;      /* Arabic body/UI — same superfamily */
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace; /* data, tokens, hashes, eyebrow labels */
+  --radius-panel: 0.25rem;        /* ruled document, not a card deck */
+  --shadow-panel: 0 1px 0 0 var(--color-ink-700);
 }
 ```
 
-Rules: fluid type via `clamp()` (display 2.2–4.4rem); `:lang(ar)` selector swaps to
-`--font-ar` and bumps line-height to 1.8 (Arabic needs it); brass appears only on live numbers,
-active nav, and the token counter — never as large fills; motion durations 150/300/600 ms with a
-single easing (`cubic-bezier(.2,.8,.2,1)`); `prefers-reduced-motion` collapses all of it.
+Rules: fluid type via `clamp()` (Latin display 2.1–4.25rem, Arabic 1.9–3.6rem — Ruqaa needs more
+leading and no negative tracking); `:lang(ar)` swaps to `--font-ar` and bumps line-height to 1.8;
+**`font-size-adjust: 0.5` on the Arabic display face** — Ruqaa draws small for its em, and matching
+x-heights rather than font-sizes is what makes the two scripts land as equals (prime directive 3);
+`opsz` is left unset on Fraunces so `font-optical-sizing: auto` tracks it to the rendered size;
+verdigris appears only on live numbers, active nav and the cheapest row — never as large fills;
+sections are separated by hairline `.rule-top` bands rather than bordered cards; `.eyebrow` is the
+one repeated label form (spaced mono small caps in Latin, weight-differentiated in Arabic, where
+uppercase and letter-spacing are meaningless); unmeasured figures render `—` via `.unmeasured`,
+never a plausible-looking number; motion durations 150/300/600 ms with a single easing
+(`cubic-bezier(.2,.8,.2,1)`); `prefers-reduced-motion` collapses all of it.
 
 ### 8.3 Routes & features
 
 `/` Home (hero + headline results strip) · `/chat` bilingual streaming chat · `/evals` benchmark
-+ judge dashboard · `/tokenizer` Fertility Lab (2D detail view of the hero data) · `/edge` live
++ judge dashboard · `/tokenizer` Fertility Lab (corpus-level detail behind the hero's sentence) · `/edge` live
 edge-node telemetry · `/registry` artifact lineage. Global: language toggle (EN/AR) that flips
 `<html dir lang>`, sovereign-mode badge (reads `/v1/models` meta), model picker.
 
@@ -640,16 +653,32 @@ animation, `<AdaptiveDpr>` + `PerformanceMonitor` from drei degrade quality befo
 frames; postprocessing limited to subtle `Bloom` (luminanceThreshold ≈ 0.85) + `Vignette`;
 every scene has a static `poster.webp` fallback (no WebGL / reduced-motion / mobile-low).
 
-**(a) FertilityField — hero + working demo (signature).**
-A real sentence (user-editable; defaults to a bilingual banking sentence) is rendered as
-glyph-particles (instanced quads sampling an MSDF glyph atlas built at startup —
-`lib/glyphAtlas.ts`; Arabic shaping done in DOM first via a hidden element, then rasterized, so
-ligatures stay correct). On tokenizer switch (Qwen3 / jais / ALLaM / Llama-3.2), the app calls
-`POST /v1/tokenize/fertility` and `useTokenClusters.ts` animates particles regrouping into token
-clusters — teal clusters for Arabic tokens, sand for English — with a brass HUD:
-`tokens · tokens/word · Δcost vs best`. The visual argument: watch an English-first tokenizer
-shatter Arabic words. Interaction: drag to orbit (damped), scroll passes through, tokenizer
-pills below the canvas (zustand `tokenizer.ts` bridges DOM ⇄ Canvas).
+**(a) The Specimen — hero + working demo (signature; DOM, not WebGL — ADR-0005).**
+`components/fertility/Specimen.tsx`. A real sentence (user-editable; defaults to a bilingual
+banking sentence) is set **once, intact**, at display size, in the dual-script pairing — one text
+node, so per-glyph font fallback puts Arabic in Ruqaa and Latin in Fraunces. Beneath it runs a
+measured rule broken into one dash per token, coloured by script (paper for Arabic, pewter for
+Latin); the gap between dashes is the cut. On tokenizer switch the rule re-cuts under unchanged
+text and the dashes morph into place: Arabic words fall into four or five, English words stay
+whole. That is the visual argument, and it is evidence rather than ambience.
+
+**Never mark tokens by splitting the text into per-token elements.** Text shaping does not cross
+element boundaries, so `<span>`-per-token severs Arabic's joins and renders `التوفير` as isolated
+letterforms — a typographic lie about the input. Boundaries are measured with
+`Range.getClientRects()` instead, which the browser returns already bidi-reordered (one rect per
+visual run), so mixed-script RTL needs no special-casing. The rule's vertical placement is derived
+from canvas font metrics — baseline position inside the line box plus the string's own ink descent
+— not a tuned fraction, so it holds across the fluid scale and Ruqaa's deep descenders.
+
+Beneath it, `TokenizerLedger.tsx` prices **all five tokenizers at once** (tokens · tokens/word ·
+×cost, cheapest marked); selection only chooses which row the rule illustrates. The comparison is
+a column you read, not a sequence you have to remember.
+
+**FertilityField (3D) is the opt-in second reading**, collapsed by default: the same
+`POST /v1/tokenize/fertility` segments drive glyph-particles (instanced quads sampling an MSDF
+atlas built at startup — `lib/glyphAtlas.ts`; Arabic shaped in DOM first, then rasterized, so
+ligatures stay correct) regrouping into token clusters via `useTokenClusters.ts`, cream for
+Arabic and pewter for Latin. Interaction: drag to orbit (damped), scroll passes through.
 Budget: ≤ 1,200 instanced glyphs, one draw call per script, custom shader (position lerp +
 cluster color) — no per-glyph meshes.
 
@@ -661,7 +690,7 @@ complains); labels via drei `<Text>` (troika) in both scripts.
 
 **(c) EdgeBoard — live telemetry (`/edge`).**
 A low-poly edge board (single glTF ≤ 300 KB, draco-compressed, authored once) with emissive
-heat responding to live watts from `/v1/telemetry/stream`; brass needle gauges (tok/s, °C, W)
+heat responding to live watts from `/v1/telemetry/stream`; verdigris needle gauges (tok/s, °C, W)
 are HTML overlays (drei `<Html>`) so numbers stay crisp and accessible. SSE hook `lib/sse.ts`
 reconnects with backoff.
 
