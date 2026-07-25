@@ -86,3 +86,78 @@ def test_train_config_revision_must_be_a_commit_sha(tmp_path: Path) -> None:
     for movable in ("<pin-hf-commit-sha>", "main", "v0.4.12", pinned.upper(), pinned[:39], ""):
         with pytest.raises(SystemExit, match="commit sha"):
             load_config(cfg_with(movable))
+
+
+def _corpus(n: int) -> list[dict[str, object]]:
+    """A schema-valid corpus with the 60/30/10 ar/en/mixed shape the curation targets."""
+    out = []
+    for i in range(n):
+        lang = "ar" if i % 10 < 6 else ("en" if i % 10 < 9 else "mixed")
+        text = f"سؤال {i}" if lang != "en" else f"question {i}"
+        out.append(
+            {
+                "id": f"fixture-{lang}-{i:06d}",
+                "messages": [
+                    {"role": "user", "content": text},
+                    {"role": "assistant", "content": f"{text} ."},
+                ],
+                "lang": lang,
+                "domain": ["banking.retail"],
+                "provenance": "native",
+                "source": {"name": "FIXTURE", "url": "local:x", "license": "Apache-2.0"},
+                "pii_checked": True,
+                "split": "train",
+            }
+        )
+    return out
+
+
+def test_split_is_deterministic_and_stratified() -> None:
+    """sft.py reads these shards, so an unstable or skewed split silently ruins comparability."""
+    from split import assign
+
+    corpus = _corpus(1000)
+    train_a, val_a = assign(corpus, 0.05, 3407)
+    train_b, val_b = assign(corpus, 0.05, 3407)
+
+    # same seed, same corpus → byte-identical partition
+    assert [r["id"] for r in val_a] == [r["id"] for r in val_b]
+    assert [r["id"] for r in train_a] == [r["id"] for r in train_b]
+
+    # partition, not a sample: nothing lost, nothing shared, labels set
+    assert len(train_a) + len(val_a) == len(corpus)
+    assert not {r["id"] for r in train_a} & {r["id"] for r in val_a}
+    assert {r["split"] for r in train_a} == {"train"}
+    assert {r["split"] for r in val_a} == {"val"}
+
+    # val mirrors train per language, so held-out loss speaks for the code-switching case too
+    for lang in ("ar", "en", "mixed"):
+        share = sum(r["lang"] == lang for r in val_a) / len(val_a)
+        expected = sum(r["lang"] == lang for r in corpus) / len(corpus)
+        assert abs(share - expected) < 0.05, f"{lang}: val {share:.3f} vs corpus {expected:.3f}"
+
+    # a different seed must actually move the partition
+    _, val_c = assign(corpus, 0.05, 1234)
+    assert [r["id"] for r in val_c] != [r["id"] for r in val_a]
+
+
+def test_split_keeps_singleton_strata_in_train() -> None:
+    """A stratum of one cannot be held out — that would remove its only training example."""
+    from split import assign
+
+    corpus = [
+        *_corpus(20),
+        {
+            "id": "fixture-solo-000001",
+            "messages": [{"role": "user", "content": "x"}, {"role": "assistant", "content": "y"}],
+            "lang": "ar",
+            "domain": ["general"],
+            "provenance": "synthetic",
+            "source": {"name": "FIXTURE", "url": "local:x", "license": "MIT"},
+            "pii_checked": True,
+            "split": "train",
+        },
+    ]
+    train, val = assign(corpus, 0.5, 3407)
+    assert "fixture-solo-000001" in {r["id"] for r in train}
+    assert "fixture-solo-000001" not in {r["id"] for r in val}

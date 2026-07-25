@@ -22,8 +22,8 @@ train:
   optim: adamw_8bit
   neftune_noise_alpha: 5 # cheap robustness bump; ablate once
 chat_template: qwen3 # train non-thinking mode: enable_thinking=false
-dataset: data/processed/train.jsonl
-eval_holdout: data/processed/val.jsonl
+dataset: data/processed/splits/train.jsonl
+eval_holdout: data/processed/splits/val.jsonl
 logging:
   mlflow_experiment: sanad-sft
   log_steps: 10
