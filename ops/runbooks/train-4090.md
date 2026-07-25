@@ -180,7 +180,17 @@ evidence that the run was healthy rather than merely finished.
 
 **Next phase:** P3 quantize + serve — `just quant-awq`, `just quant-gguf`, then `just ppl-gate`,
 which fails the release if quantization costs more than 3% (AWQ) / 5% (GGUF) perplexity per
-language. The llama.cpp pin for that is already in `configs/quant/gguf-q4km.yaml`.
+language. The llama.cpp pin is already in `configs/quant/gguf-q4km.yaml`, and `just data` now also
+writes the three inputs P3 needs:
+
+| Artifact | Consumed by | Note |
+|---|---|---|
+| `calib_bilingual_512.jsonl` | `quantize/awq.py` | ≥ 40% Arabic **characters**, enforced |
+| `calib_bilingual.txt` | `quantize/gguf.sh` (imatrix) | same records, as plain text |
+| `ppl_heldout_bilingual.jsonl` | `quantize/ppl_gate.py` | drawn from **val**, disjoint from calibration |
+
+Calibration comes from train and the PPL holdout from val on purpose: a perplexity gate scored on
+the data the quantizer calibrated against cannot detect the regression it exists to catch.
 
 ---
 

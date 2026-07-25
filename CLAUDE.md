@@ -334,7 +334,7 @@ class Settings(BaseSettings):
 **Pipeline order (all idempotent, all log to MLflow):** ingest → `normalize.py` (Unicode NFC;
 CAMeL normalization used **only** for dedup/lang-id keys, raw text preserved for SFT) →
 `langid.py` (fasttext lid.176; tag `mixed` when both scripts > 15%) → `dedup.py` (MinHash,
-Jaccard ≥ 0.85 drop) → schema validation → `split.py` → `MANIFEST.yaml` regeneration.
+Jaccard ≥ 0.85 drop) → schema validation → `split.py` → `calib.py` → `MANIFEST.yaml` regeneration.
 
 `split.py` writes `data/processed/splits/{train,val}.jsonl` — the two shards `sft.py` loads as
 `dataset` and `eval_holdout`. Seeded (3407) and stratified by `(lang, provenance)`, so the same
@@ -343,6 +343,15 @@ corpus always yields the same split and val mirrors train per language; an unstr
 case that matters most. They live in a **subdirectory** because every other stage globs
 `data/processed/*.jsonl` non-recursively — keeping them out of that glob stops them being
 re-normalised on a second run and double-counted in the manifest.
+
+`calib.py` then builds the three artifacts P3 consumes and nothing previously produced:
+`calib_bilingual_512.jsonl` (AWQ), `calib_bilingual.txt` (llama.cpp imatrix) and
+`ppl_heldout_bilingual.jsonl` (the ppl gate's fixed shard). **Calibration is drawn from train and
+the PPL holdout from val**, so the gate never scores perplexity on data the quantizer was
+calibrated on — a gate that did could not detect the regression it exists to catch. The Arabic
+target is measured in **characters, not records**, because that is what `awq.py` gates on: half the
+records Arabic still misses the 40% floor when the English records are longer. Sample count and the
+floor are read from `configs/quant/awq-w4a16.yaml` so the generator cannot drift from its gate.
 
 **`MANIFEST.yaml` is a CI gate:** aggregates per-source counts, license, provenance split
 (native/translated/synthetic %), sha256 of the processed shards, and a `profile:` field.
@@ -847,7 +856,7 @@ The former Ansible/Jetson provisioning path was removed by ADR-0004.
 setup:            # uv sync (ml, api) + pnpm install + pre-commit install
 api-types:        # export OpenAPI → hey-api generate → src/lib/api/
 # ── data / ml ──────────────────────────────────────────
-data:             # ingest → normalize → langid → dedup → split → MANIFEST.yaml
+data:             # ingest → normalize → langid → dedup → split → calib → MANIFEST.yaml
 data-gate:        # license/provenance CI gate
 preflight cfg:    # GPU/VRAM/extras/pins/data checks before a multi-hour run
 mlflow-ui port:   # tracking UI — watch loss, VRAM, cost during a run
