@@ -33,11 +33,20 @@ data:
     cd {{ML}} && uv run python data/scripts/normalize.py data/raw data/processed
     cd {{ML}} && uv run python data/scripts/langid.py data/processed
     cd {{ML}} && uv run python data/scripts/dedup.py data/processed
+    cd {{ML}} && uv run python data/scripts/split.py
     cd {{ML}} && uv run python data/scripts/manifest.py build
 
 # license/provenance CI gate (fails on non-commercial records in a commercial manifest)
 data-gate:
     cd {{ML}} && uv run python data/scripts/manifest.py gate --profile commercial
+
+# MLflow tracking UI on http://localhost:5000 — watch loss/VRAM/cost during a run
+mlflow-ui port="5000":
+    cd {{ML}} && uv run mlflow ui --host 127.0.0.1 --port {{port}}
+
+# verify GPU, extras, pins and data BEFORE a multi-hour run (train/preflight.py)
+preflight cfg="configs/train/qwen3-4b-qlora-dora.yaml":
+    cd {{ML}} && uv run python train/preflight.py --config {{cfg}}
 
 train cfg="configs/train/qwen3-4b-qlora-dora.yaml":
     cd {{ML}} && uv run python train/sft.py --config {{cfg}}

@@ -334,7 +334,15 @@ class Settings(BaseSettings):
 **Pipeline order (all idempotent, all log to MLflow):** ingest → `normalize.py` (Unicode NFC;
 CAMeL normalization used **only** for dedup/lang-id keys, raw text preserved for SFT) →
 `langid.py` (fasttext lid.176; tag `mixed` when both scripts > 15%) → `dedup.py` (MinHash,
-Jaccard ≥ 0.85 drop) → schema validation → `MANIFEST.yaml` regeneration.
+Jaccard ≥ 0.85 drop) → schema validation → `split.py` → `MANIFEST.yaml` regeneration.
+
+`split.py` writes `data/processed/splits/{train,val}.jsonl` — the two shards `sft.py` loads as
+`dataset` and `eval_holdout`. Seeded (3407) and stratified by `(lang, provenance)`, so the same
+corpus always yields the same split and val mirrors train per language; an unstratified sample of a
+60/30/10 corpus can under-represent code-switching enough that held-out loss says nothing about the
+case that matters most. They live in a **subdirectory** because every other stage globs
+`data/processed/*.jsonl` non-recursively — keeping them out of that glob stops them being
+re-normalised on a second run and double-counted in the manifest.
 
 **`MANIFEST.yaml` is a CI gate:** aggregates per-source counts, license, provenance split
 (native/translated/synthetic %), sha256 of the processed shards, and a `profile:` field.
@@ -839,8 +847,10 @@ The former Ansible/Jetson provisioning path was removed by ADR-0004.
 setup:            # uv sync (ml, api) + pnpm install + pre-commit install
 api-types:        # export OpenAPI → hey-api generate → src/lib/api/
 # ── data / ml ──────────────────────────────────────────
-data:             # ingest → normalize → langid → dedup → validate → MANIFEST.yaml
+data:             # ingest → normalize → langid → dedup → split → MANIFEST.yaml
 data-gate:        # license/provenance CI gate
+preflight cfg:    # GPU/VRAM/extras/pins/data checks before a multi-hour run
+mlflow-ui port:   # tracking UI — watch loss, VRAM, cost during a run
 train cfg="configs/train/qwen3-4b-qlora-dora.yaml":   # uv run train/sft.py --config {{cfg}}
 merge cfg="configs/train/qwen3-4b-qlora-dora.yaml":   # adapters → merged-bf16 + manifest
 quant-awq model="out/merged-bf16":    # llm-compressor recipe
