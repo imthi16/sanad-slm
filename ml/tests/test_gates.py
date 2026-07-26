@@ -27,6 +27,56 @@ def test_curate_template_requires_citation_and_reviewer() -> None:
     assert "citation" in joined and "reviewer" in joined
 
 
+def test_curate_synthetic_draft_needs_no_reviewer() -> None:
+    """A machine-drafted pair has no human attestation yet — requiring one would force a lie."""
+    from curate_bank import validate_draft
+
+    draft = {
+        "question": "q",
+        "answer": "a",
+        "citation": "CBUAE Rulebook, Art. 8",
+        "domain": "banking.retail",
+        "provenance": "synthetic",
+    }
+    assert validate_draft(draft, "t.yaml[0]") == []
+
+
+def test_curate_rejects_reviewer_on_non_native_draft() -> None:
+    """A reviewed pair IS native; carrying both would let synthetic text inherit the claim."""
+    from curate_bank import validate_draft
+
+    draft = {
+        "question": "q",
+        "answer": "a",
+        "citation": "CBUAE Rulebook, Art. 8",
+        "domain": "banking.retail",
+        "provenance": "synthetic",
+        "reviewer": "MO",
+    }
+    joined = "\n".join(validate_draft(draft, "t.yaml[0]"))
+    assert "reviewer" in joined and "native" in joined
+
+
+def test_curate_record_preserves_synthetic_provenance() -> None:
+    """Provenance must survive into the record — MANIFEST's split is computed from it."""
+    from curate_bank import to_record
+
+    rec = to_record(
+        {
+            "question": "q",
+            "answer": "a",
+            "citation": "CBUAE Rulebook, Art. 8",
+            "domain": "banking.retail",
+            "lang": "en",
+            "provenance": "synthetic",
+        },
+        7,
+    )
+    assert rec["provenance"] == "synthetic"
+    assert rec["id"] == "bank-syn-en-000007"
+    assert "reviewer" not in rec["source"]
+
+
 def test_gate_blocks_planted_noncommercial_record(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

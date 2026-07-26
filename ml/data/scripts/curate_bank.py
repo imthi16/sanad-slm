@@ -11,7 +11,13 @@ Draft YAML shape (one file may hold many):
       citation: "CBUAE Rulebook, AML/CFT Decision No. (20) of 2018, Art. 8"
       domain: banking.compliance
       lang: ar            # optional; re-checked by langid pass
-      reviewer: "MO"      # initials — required
+      provenance: native  # optional, default native; native | synthetic | translated
+      reviewer: "MO"      # initials — required for provenance: native
+
+`reviewer` is an attestation that a human checked the pair, so it is required exactly when
+the draft claims `provenance: native`. A machine-drafted pair enters as `synthetic` with no
+reviewer and earns both fields when a human promotes it — that ordering is what keeps the
+MANIFEST's native/translated/synthetic split truthful (prime directive 3).
 
 Usage: python data/scripts/curate_bank.py [--emit]
 """
@@ -41,6 +47,7 @@ PII_PATTERNS = [
 ]
 
 VALID_DOMAINS = {"banking.compliance", "banking.retail", "banking.corporate", "banking.islamic"}
+VALID_PROVENANCE = {"native", "synthetic", "translated"}
 
 
 def pii_scan(text: str) -> list[str]:
@@ -49,9 +56,22 @@ def pii_scan(text: str) -> list[str]:
 
 def validate_draft(d: dict[str, Any], where: str) -> list[str]:
     errors = []
-    for field in ("question", "answer", "citation", "domain", "reviewer"):
+    provenance = d.get("provenance", "native")
+    if provenance not in VALID_PROVENANCE:
+        errors.append(f"{where}: provenance '{provenance}' ∉ {sorted(VALID_PROVENANCE)}")
+
+    required = ["question", "answer", "citation", "domain"]
+    if provenance == "native":
+        required.append("reviewer")  # the human attestation — see module docstring
+    for field in required:
         if not d.get(field):
             errors.append(f"{where}: missing required field '{field}' (template §5.1)")
+
+    if provenance != "native" and d.get("reviewer"):
+        errors.append(
+            f"{where}: provenance '{provenance}' carries a reviewer — a reviewed pair is "
+            "native; promote it by setting provenance: native instead"
+        )
     if d.get("domain") and d["domain"] not in VALID_DOMAINS:
         errors.append(f"{where}: domain '{d['domain']}' ∉ {sorted(VALID_DOMAINS)}")
     for field in ("question", "answer"):
@@ -62,16 +82,23 @@ def validate_draft(d: dict[str, Any], where: str) -> list[str]:
 
 def to_record(d: dict[str, Any], idx: int) -> dict[str, Any]:
     lang = d.get("lang", "ar")
+    provenance = d.get("provenance", "native")
+    # Non-native origin is carried in the id as well as the provenance field, so a
+    # mislabelled record is visible in any plain listing, not only after a schema read.
+    marker = "" if provenance == "native" else "-syn"
+    source = {**SOURCE, "citation": d["citation"]}
+    if reviewer := d.get("reviewer"):
+        source["reviewer"] = reviewer
     return {
-        "id": f"bank-{lang}-{idx:06d}",
+        "id": f"bank{marker}-{lang}-{idx:06d}",
         "messages": [
             {"role": "user", "content": str(d["question"]).strip()},
             {"role": "assistant", "content": str(d["answer"]).strip()},
         ],
         "lang": lang,
         "domain": [d["domain"]],
-        "provenance": "native",
-        "source": {**SOURCE, "citation": d["citation"], "reviewer": d["reviewer"]},
+        "provenance": provenance,
+        "source": source,
         "pii_checked": True,  # asserted only after pii_scan passed
         "split": "train",
     }
@@ -92,8 +119,22 @@ def main() -> None:
         raise SystemExit("curation validation failed:\n" + "\n".join(errors))
 
     langs = [d.get("lang", "ar") for d, _ in drafts]
+    provs = [d.get("provenance", "native") for d, _ in drafts]
     split = {ln: langs.count(ln) / len(langs) for ln in ("ar", "en", "mixed")} if langs else {}
-    log.info("curation_ok", drafts=len(drafts), lang_split=split, target="60/30/10 ar/en/mixed")
+    prov_split = {p: provs.count(p) for p in sorted(VALID_PROVENANCE)} if provs else {}
+    log.info(
+        "curation_ok",
+        drafts=len(drafts),
+        lang_split=split,
+        provenance=prov_split,
+        target="60/30/10 ar/en/mixed",
+    )
+    if unreviewed := provs.count("synthetic"):
+        log.warning(
+            "synthetic_pending_review",
+            count=unreviewed,
+            note="machine-drafted; not native until a human reviews and promotes each pair",
+        )
 
     if args.emit and drafts:
         records = [to_record(d, i) for i, (d, _) in enumerate(drafts)]
