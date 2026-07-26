@@ -150,6 +150,20 @@ def generate(client: httpx.Client, job: dict[str, str], seed: int) -> list[dict[
     return out
 
 
+def flush(by_topic: dict[str, list[dict[str, str]]]) -> None:
+    """Write drafts to disk mid-run.
+
+    A full pass is ~4.5 h of GPU time. Holding every draft in memory until the last job means
+    one crash at hour four loses the lot, so we rewrite the (small) YAML files periodically:
+    a failure then costs the current batch, not the run.
+    """
+    for topic_id, drafts in by_topic.items():
+        (OUT_DIR / f"synthetic_{topic_id}.yaml").write_text(
+            yaml.safe_dump(drafts, allow_unicode=True, sort_keys=False, width=100),
+            encoding="utf-8",
+        )
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--emit", action="store_true", help="write YAML drafts (else dry-run)")
@@ -197,15 +211,11 @@ def main() -> None:
                 for p in pairs
             )
             if (n + 1) % 10 == 0:
+                flush(by_topic)
                 total = sum(len(v) for v in by_topic.values())
                 log.info("progress", done=n + 1, of=len(plan), pairs=total, failed=failures)
 
-    for topic_id, drafts in by_topic.items():
-        (OUT_DIR / f"synthetic_{topic_id}.yaml").write_text(
-            yaml.safe_dump(drafts, allow_unicode=True, sort_keys=False, width=100),
-            encoding="utf-8",
-        )
-
+    flush(by_topic)
     total = sum(len(v) for v in by_topic.values())
     log.info("emitted", topics=len(by_topic), pairs=total, failed_jobs=failures, out=str(OUT_DIR))
 

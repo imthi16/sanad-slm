@@ -27,9 +27,12 @@ api-types:
 
 # ── data / ml ──────────────────────────────────────────
 
-# ingest → normalize → langid → dedup → validate → MANIFEST.yaml
+# ingest (CIDAR + own bank pairs) → normalize → langid → dedup → split → calib → MANIFEST.yaml
 data:
     cd {{ML}} && uv run python data/scripts/ingest_cidar.py
+    # curate_bank emits data/raw/bank_records.jsonl, which normalize globs next. Without this
+    # step the whole domain corpus — the entire point of the fine-tune — is silently absent.
+    cd {{ML}} && uv run python data/scripts/curate_bank.py --emit
     cd {{ML}} && uv run python data/scripts/normalize.py data/raw data/processed
     cd {{ML}} && uv run python data/scripts/langid.py data/processed
     cd {{ML}} && uv run python data/scripts/dedup.py data/processed
