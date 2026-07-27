@@ -20,21 +20,32 @@ dependencies = [
 
 [project.optional-dependencies]
 # GPU training stack — installed on train boxes only (`uv sync --extra train`).
+# Every ceiling here is Unsloth's, not ours (ADR-0006). Unsloth caps TRL below 1.0 at *every*
+# release including the current one, so the former `trl>=1.0` floor was unsatisfiable alongside
+# it: uv silently backtracked to unsloth 2025.7.2 — the last build with no TRL ceiling — and that
+# pairing dies at import on `ConstantLengthDataset`, which TRL 1.0 moved out of
+# `trl.trainer.utils`. The `unsloth>=2026.7` floor is what stops that backtrack recurring; the
+# rest mirror its metadata so a bad combination fails at lock time rather than 9 s into a run.
 train = [
-    "torch>=2.7",
-    "transformers>=4.52",
-    "datasets>=3.5",
+    "torch>=2.7,<2.12",                 # unsloth: <2.12.0
+    "transformers>=4.52.4,<=5.5",       # unsloth: >=4.51.3,<=5.5.0 (4.52.0–.3 excluded upstream)
+    "datasets>=3.5,<4.4",               # unsloth: >=3.4.1,<4.4.0
     "accelerate>=1.6",
-    "trl>=1.0",
-    "peft>=0.17",
-    "bitsandbytes>=0.47",
-    "unsloth>=2025.3",
+    "trl>=0.18.2,!=0.19.0,<=0.24",      # unsloth: the hard ceiling — see ADR-0006
+    "peft>=0.18",                       # unsloth: >=0.18.0; still gives use_dora=True
+    "bitsandbytes>=0.47,!=0.48.0",      # unsloth excludes 0.48.0
+    "unsloth>=2026.7",
     "sentencepiece>=0.2",
 ]
 # Quantization (GPU inference path) — llm-compressor is the vLLM-official AWQ successor;
 # AutoAWQ is archived: do not add it (§3.1).
+# Ceiling is Unsloth's again (ADR-0006): both extras land in one venv
+# (`uv sync --extra train --extra quant`), so llm-compressor must fit inside Unsloth's windows.
+# 0.12 needs transformers >=5.9 (Unsloth caps 5.5); 0.11 needs datasets >=4.8.4 (Unsloth caps
+# <4.4). 0.10.x is the newest that overlaps on both axes — transformers at 4.57.6, datasets in
+# [4.2, 4.4). Raising this ceiling means re-checking datasets *and* transformers, not just one.
 quant = [
-    "llmcompressor>=0.6",
+    "llmcompressor>=0.10,<0.11",
 ]
 # Arabic NLP utils — normalization for retrieval/dedup keys only; SFT keeps raw text.
 arabic = [
@@ -51,6 +62,14 @@ dev = [
     "types-PyYAML",
     "types-jsonschema",
 ]
+
+[tool.uv]
+# Resolve for the only platform this workspace ever runs on. Without this, uv's universal
+# resolution also solves for darwin/arm64, where unsloth-zoo pulls mlx-vlm and mlx-vlm demands
+# transformers >=5.14 — a macOS-only requirement that propagated into the shared solve and made
+# every llmcompressor below 0.12 unsatisfiable. The train box, the CPU edge box and the dev
+# workstation are all x86_64 Linux (ADR-0004), so nothing is lost by saying so (ADR-0006).
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
 
 [tool.ruff]
 line-length = 100

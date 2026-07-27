@@ -200,9 +200,9 @@ bootstrapping, run `uv lock` / `pnpm install` and trust resolution; do not hand-
 | Python | CPython | 3.12.x | Widest CUDA-wheel coverage; 3.13 wheels still lag for the training stack |
 | Package mgr | **uv** (Astral) | ≥ 0.7 | The 2025–26 default; 10–100× faster than pip, lockfile-native, workspace support |
 | Torch | torch + CUDA 12.x | ≥ 2.7 | SDPA/FlashAttention path; matches vLLM/Unsloth support matrix |
-| Fine-tuning | **Unsloth** + TRL ≥ 1.0 + PEFT ≥ 0.17 | latest | Unsloth = ~2× faster, 30–70% less VRAM on single GPU; TRL v1 unified `SFTTrainer`; PEFT gives `use_dora=True` |
+| Fine-tuning | **Unsloth** ≥ 2026.7 + TRL ≤ 0.24 + PEFT ≥ 0.18 | see `ml/pyproject.toml` | Unsloth = ~2× faster, 30–70% less VRAM on single GPU; PEFT gives `use_dora=True`. **TRL ≥ 1.0 is not available here** — Unsloth caps TRL at `<=0.24.0` in every release, and the former `trl>=1.0` floor silently resolved a year-old Unsloth that cannot import (ADR-0006). Unsloth's windows also cap transformers (`<=5.5`), datasets (`<4.4`) and torch (`<2.12`), which in turn caps `llmcompressor` at 0.10.x — raise any of these only together, and re-run `just preflight` |
 | Quant (train) | bitsandbytes NF4 | ≥ 0.47 | QLoRA's training-safe 4-bit |
-| Quant (GPU inference) | **llm-compressor** → AWQ W4A16 | ≥ 0.6 | AutoAWQ is archived; llm-compressor is the vLLM-official successor (produces `compressed-tensors` checkpoints vLLM loads natively) |
+| Quant (GPU inference) | **llm-compressor** → AWQ W4A16 | ≥ 0.10, < 0.11 | AutoAWQ is archived; llm-compressor is the vLLM-official successor (produces `compressed-tensors` checkpoints vLLM loads natively). Ceiling is Unsloth's, not ours: 0.11 wants `datasets>=4.8.4` and 0.12 wants `transformers>=5.9`, both outside Unsloth's windows, and the two extras share one venv (ADR-0006) |
 | Quant (edge) | llama.cpp GGUF **Q4_K_M + imatrix** | pinned commit | Q4_K_M = community sweet spot; importance-matrix quantization is the current quality trick — run imatrix on a **bilingual** calibration text |
 | Experiment tracking | **MLflow** (self-hosted) | ≥ 2.20 | Sovereign-friendly (no SaaS); Trackio is an acceptable lighter alternative |
 | Eval harness | **lm-evaluation-harness** | pinned commit ≥ 0.4.9 | Ships `arabicmmlu`, `arabic_leaderboard_*`; pin the exact rev in `run_lm_eval.sh` |
