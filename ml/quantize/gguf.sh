@@ -33,11 +33,27 @@ if [[ ! -d "$LLAMA_CPP_DIR" ]]; then
     git clone https://github.com/ggml-org/llama.cpp "$LLAMA_CPP_DIR"
 fi
 git -C "$LLAMA_CPP_DIR" checkout "$LLAMA_CPP_REV"
-cmake -S "$LLAMA_CPP_DIR" -B "$LLAMA_CPP_DIR/build" -DGGML_CUDA="${GGML_CUDA:-ON}"
+
+# CUDA is opt-in by capability, not by default. A GPU is not enough — building the CUDA backend
+# needs nvcc, and the train box has the driver without the toolkit, so a hardcoded ON failed the
+# cmake configure step. Override explicitly with GGML_CUDA=ON/OFF when you know better.
+if [[ -z "${GGML_CUDA:-}" ]]; then
+    if command -v nvcc >/dev/null 2>&1; then GGML_CUDA=ON; else GGML_CUDA=OFF; fi
+fi
+echo "→ building llama.cpp with GGML_CUDA=$GGML_CUDA$([[ $GGML_CUDA == OFF ]] && echo ' (no nvcc on PATH — CPU build; imatrix and ppl will be slow)')"
+cmake -S "$LLAMA_CPP_DIR" -B "$LLAMA_CPP_DIR/build" -DGGML_CUDA="$GGML_CUDA"
 cmake --build "$LLAMA_CPP_DIR/build" --target llama-imatrix llama-quantize -j
 
 # 2. convert HF → f16 GGUF
-python "$LLAMA_CPP_DIR/convert_hf_to_gguf.py" "$MODEL_DIR" --outfile "$F16_OUT" --outtype f16
+# Resolve an interpreter rather than assuming `python`: Ubuntu 22.04 ships python3 with no
+# unsuffixed alias, so a bare `python` here is a guaranteed "command not found". Prefer the
+# workspace venv — the convert script needs torch/transformers/numpy, which only it has.
+if [[ -x "$ML_ROOT/.venv/bin/python" ]]; then PY="$ML_ROOT/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then PY=python3
+elif command -v python >/dev/null 2>&1; then PY=python
+else echo "✗ no python interpreter found — run \`uv sync --extra train\` in ml/" >&2; exit 1
+fi
+"$PY" "$LLAMA_CPP_DIR/convert_hf_to_gguf.py" "$MODEL_DIR" --outfile "$F16_OUT" --outtype f16
 
 # 3. importance matrix on BILINGUAL calibration text
 "$LLAMA_CPP_DIR/build/bin/llama-imatrix" -m "$F16_OUT" -f "$CALIB_TXT" -o "$IMATRIX_OUT"
