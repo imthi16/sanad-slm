@@ -21,11 +21,28 @@ if [[ "$LM_EVAL_REV" == *"<"* ]]; then
     exit 1
 fi
 
-# install the pinned harness into the ml venv (idempotent; offline mode uses the uv cache)
-uv pip install "lm_eval[vllm] @ git+https://github.com/EleutherAI/lm-evaluation-harness@${LM_EVAL_REV}"
+# The harness goes in its OWN venv, never the training one. vLLM pins its own torch, and the
+# training env is pinned to torch 2.10 with unsloth compiled against it (ADR-0006) — installing
+# lm_eval[vllm] alongside it lets uv re-resolve torch and quietly destroy the environment that
+# produced the model being evaluated. Separate venvs cost ~10 GB of disk and buy the guarantee
+# that an eval can never invalidate a training run.
+EVAL_VENV="${SANAD_EVAL_VENV:-$ML_ROOT/.venv-eval}"
+if [[ ! -x "$EVAL_VENV/bin/lm_eval" ]]; then
+    echo "→ creating isolated eval venv at $EVAL_VENV" >&2
+    uv venv "$EVAL_VENV" --python 3.12
+    VIRTUAL_ENV="$EVAL_VENV" uv pip install \
+        "lm_eval[vllm] @ git+https://github.com/EleutherAI/lm-evaluation-harness@${LM_EVAL_REV}"
+fi
+
+# Sanity: the training venv must still hold the torch ADR-0006 pinned. If this ever fails, an
+# eval has leaked into it and the training environment is no longer the one that trained.
+if [[ -x "$ML_ROOT/.venv/bin/python" ]]; then
+    TRAIN_TORCH=$("$ML_ROOT/.venv/bin/python" -c "import torch;print(torch.__version__)" 2>/dev/null || echo "absent")
+    echo "→ training venv torch: $TRAIN_TORCH (must stay 2.10.x per ADR-0006)" >&2
+fi
 
 mkdir -p "$OUT"
-uv run lm_eval --model vllm \
+"$EVAL_VENV/bin/lm_eval" --model vllm \
     --model_args "pretrained=${MODEL},dtype=bfloat16,gpu_memory_utilization=0.85" \
     --tasks "$TASKS" \
     --num_fewshot "$NUM_FEWSHOT" \
@@ -40,6 +57,8 @@ uv run lm_eval --model vllm \
     echo "lm_eval_rev: $LM_EVAL_REV"
     echo "tasks: $TASKS"
     echo "num_fewshot: $NUM_FEWSHOT"
+    echo "seed: 3407"
+    echo "eval_venv: $EVAL_VENV"
     echo "data_manifest_sha256: $(sha256sum "$ML_ROOT/data/MANIFEST.yaml" | cut -d' ' -f1)"
 } > "$OUT/PROVENANCE.yaml"
 
