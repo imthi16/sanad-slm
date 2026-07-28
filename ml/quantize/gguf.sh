@@ -42,7 +42,12 @@ if [[ -z "${GGML_CUDA:-}" ]]; then
 fi
 echo "→ building llama.cpp with GGML_CUDA=$GGML_CUDA$([[ $GGML_CUDA == OFF ]] && echo ' (no nvcc on PATH — CPU build; imatrix and ppl will be slow)')"
 cmake -S "$LLAMA_CPP_DIR" -B "$LLAMA_CPP_DIR/build" -DGGML_CUDA="$GGML_CUDA"
-cmake --build "$LLAMA_CPP_DIR/build" --target llama-imatrix llama-quantize -j
+# llama-perplexity belongs in this list even though this script never calls it: `just ppl-gate`
+# looks for it in exactly this build tree, and it is the release-blocking gate for the artifact
+# produced two lines below. Omitting it meant the 2026-07-28 run built a perfectly good
+# Q4_K_M and then aborted with "GGUF PPL GATE RED" that was a missing binary, not a quality
+# failure — the most expensive possible way to discover a one-word omission.
+cmake --build "$LLAMA_CPP_DIR/build" --target llama-imatrix llama-quantize llama-perplexity -j
 
 # 2. convert HF → f16 GGUF
 # Resolve an interpreter rather than assuming `python`: Ubuntu 22.04 ships python3 with no
