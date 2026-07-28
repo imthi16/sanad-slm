@@ -4,8 +4,26 @@ Every number here traces to a file produced by the pipeline (prime directive 6).
 not measured are written `—`, never estimated (§8.2). Read the [Limits](#limits--what-this-run-does-not-show)
 section before quoting anything.
 
-**Compute:** one RTX 4090 (24 GB) on an x86_64 Linux workstation, plus its 32-thread CPU for the
-edge path. **Cost: $0** — local hardware (ADR-0003/0004).
+**Compute:** one RTX 4090 (24 GB) on an x86_64 Linux workstation for training and AWQ; a separate
+CPU-only 12-core laptop for the edge measurements. **Cost: $0** — local hardware (ADR-0003/0004).
+
+### Traceability (prime directive 6)
+
+Every figure below comes from one of these, committed alongside this document. `ml/evals/reports/**`
+is gitignored for bulk output, so these four were force-added: they are the evidence, and a claim
+whose evidence is untracked is not a claim.
+
+| report | sha256 |
+|---|---|
+| `ppl_gate_awq-w4a16.json` | `5176c719732c5079c2cab01540e22bb514ac9d6497afadd0fd9054847e937aac` |
+| `ppl_gate_sanad-Q4_K_M.gguf.json` | `c195e7447d2e00f5e0a09a0c27eb50c6b94912cb033148fb8966ec30535d21ef` |
+| `edge_bench_x86-local.txt` | `3fa61ce6c4261e3629c20ab6d5ac415839c1b1b707b0456b1786d4e3149ef7c8` |
+| `demo_x86-local.json` | `f3659759e260dbbc02dc6f403d11e57ac19781e0e6e0fe78a4b15f62601fde5a` |
+
+Training metrics (loss curve, peak VRAM, FLOPs) come from MLflow run `b8ccaafc`
+(`hilarious-shad-242`), preserved in `mlflow.db` in the artifact archive. **Model weights are not
+in git** (prime directive 6) — the archive lives at `~/sanad-artifacts/` with all 8,223 files
+sha256-verified against the machine that produced them.
 
 ---
 
@@ -109,30 +127,67 @@ calibration set — §5.3 calls English-only calibration the most common silent 
 this is direct evidence the bilingual calibration worked. Note the English subset is only 20
 records and therefore noisy; do not read the AR-vs-EN gap itself as meaningful.
 
-### GGUF Q4_K_M quality gate
+### GGUF Q4_K_M quality gate — PASSED · `evals/reports/ppl_gate_sanad-Q4_K_M.gguf.json`
+
+Both sides through `llama-perplexity`, candidate against the **f16 GGUF**.
 
 | subset | f16 GGUF | Q4_K_M | ΔPPL | gate ≤ 5% |
 |---|---|---|---|---|
-| pooled | — | — | — | — |
-| Arabic | — | — | — | — |
-| English | — | — | — | — |
+| pooled | 6.1415 | 6.2872 | **+2.37%** | ✅ |
+| **Arabic** (n=226) | 6.2276 | 6.3765 | **+2.39%** | ✅ |
+| English (n=20) | 6.8939 | 6.8369 | −0.83% | ✅ |
 
-*Pending re-measurement.* The first attempt produced ΔPPL of −8.5% pooled and −39.5% English —
-i.e. 4-bit apparently *beating* f16, which is impossible. Cause: the baseline was measured with
-transformers and the candidate with `llama-perplexity` (different tokenization and context
-windowing), and the gate was one-sided so the implausible result passed. Both defects are fixed —
-a GGUF candidate is now compared against the f16 GGUF through the same binary, and a delta below
-−2% now **fails** with the explanation that the harness improved, not the model. The AWQ gate above
-was never affected: both of its sides went through transformers.
+**This number was wrong the first time and the gate passed it anyway.** The initial run reported
+−8.5% pooled and −39.5% English — 4-bit apparently beating f16, which is impossible. Two defects
+combined: the baseline was measured with transformers while the candidate went through
+`llama-perplexity` (different tokenization, different context windowing), and the threshold was
+one-sided so an implausible "improvement" sailed through. Both are fixed: a GGUF candidate is now
+compared against the f16 GGUF via the same binary, and a delta below −2% **fails** with the
+explanation that the harness improved rather than the model. The AWQ gate was never affected —
+both of its sides always went through transformers.
 
-### Edge efficiency (CPU-only, `platform: x86-local`)
+Worth keeping in mind when reading any quantization result: a gate that only checks one direction
+cannot tell a good model from a broken measurement.
 
-| metric | value |
+### Edge efficiency — CPU-only, `platform: x86-local`
+
+Measured on the deployment target itself: 12-core x86_64 laptop, **no GPU**, 14 GB RAM, llama.cpp
+at the pinned commit `c0bc8591e` (release b10107) — the same build that produced the GGUF.
+
+| metric | value | how |
+|---|---|---|
+| prompt processing | **30.05 tok/s** | `llama-bench -t 6 -p 64` |
+| generation | **6.19 tok/s** | `llama-bench -t 6 -n 32` |
+| end-to-end chat | **~4.7 tok/s** | `llama-server` `/v1/chat/completions`, includes prompt processing |
+| model size on disk | 2.32 GiB (4.02 B params) | Q4_K_M |
+| watts | — | Intel RAPL present but unreadable without sudo |
+
+The two throughput figures measure different things and should not be quoted interchangeably:
+`llama-bench` isolates generation, the server figure is what a user experiences.
+
+### Working demo — `sanad-artifacts/demo.json`
+
+Three prompts through `llama-server`'s OpenAI-compatible endpoint (§6.2), seed 3407, temp 0.7:
+
+| lang | response (excerpt) |
 |---|---|
-| prompt tok/s | — |
-| generation tok/s | — |
-| RSS | — |
-| watts | — (Intel RAPL present but unreadable without sudo) |
+| ar | عادةً ما يبدأ الحد الأدنى للرصيد لفتح حساب توفير بـ 100 دولار أمريكي |
+| en | To open a corporate bank account in the UAE… valid company registration certificate… articles of association… |
+| mixed | نعم، يمكن استخدام الـ **mobile banking app** لتحويل الأموال دولياً |
+
+The code-switched case works: Latin `mobile banking app` stays intact inside Arabic script, which
+is the 3.75% of the corpus that is hardest to get right.
+
+**Two defects are visible in that output and are not cropped out here:**
+
+1. **Stray `<tool_call>` tokens prefix every response.** The Qwen3 chat template's tool-calling
+   path emits control tokens even with no tools defined. A client would have to strip them, so the
+   artifact is not yet fit to serve. Cause not yet isolated — template application at serve time,
+   or a train/serve template mismatch.
+2. **The Arabic answer quotes "100 دولار أمريكي" (US dollars) for a UAE savings account.** It
+   should be AED. This is exactly the failure mode a 13.5%-machine-drafted, unreviewed corpus
+   predicts: fluent, well-formed, and wrong on the domain specifics that matter. It is evidence
+   *for* the provenance caveats in §1, not against them.
 
 ---
 
@@ -155,6 +210,11 @@ was never affected: both of its sides went through transformers.
    egress-zero" criterion is unmet.
 7. **`cost_usd` in MLflow reads 0.4396**, an artifact of the `$0.60/h` default multiplied by
    0.733 h. The true figure is **$0** (local compute). Prefer this document over that field.
+8. **The served model emits stray `<tool_call>` tokens** (§4, demo). Until that is understood the
+   GGUF is a demonstrable artifact, not a deployable one.
+9. **Domain answers are unvalidated and at least one is wrong** (USD quoted for an AED product).
+   No factual accuracy claim is available, which is the same gap as items 3 and 4 seen from the
+   output side rather than the eval side.
 
 ---
 
@@ -174,6 +234,14 @@ a warm GPU:
 | 6 | AWQ OOM — llm-compressor only auto-offloads for MoE, and Qwen3-4B is dense | `offload_device: cpu` in the recipe |
 | 7 | `gguf.sh` never built `llama-perplexity`, so the release gate could not run | added to the cmake targets |
 | 8 | GGUF gate compared across runtimes, one-sided | matched baseline + two-sided threshold |
+| 9 | `edge-bench.sh` looked for the GGUF at a compose mount path, and required Docker — which the CPU-only edge target does not have | prefers `ml/out/`, and a native `llama-bench` before falling back to Docker |
+| 10 | Transfer verification reported 6 dotfiles missing: `lstrip("./")` strips leading dots as a character set, so `./.gitignore` became `gitignore` | `removeprefix("./")` |
+
+Number 10 was in the verification tooling rather than the pipeline, and it is the one worth
+remembering: it made a *complete* 22.41 GB transfer look like a failed one. Because the erase step
+was gated on verification rather than run alongside it, the outcome was a refusal to delete rather
+than the loss of 8,223 files. Ordering the guard before the irreversible action is what turned a
+bug into an inconvenience.
 
 Preflight now imports the training stack for real rather than calling `find_spec`, which is what
 let a broken dependency graph report "15 passed, 0 blocking" one second before an ImportError.
