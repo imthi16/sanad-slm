@@ -7,7 +7,17 @@ set -euo pipefail
 
 # ── pins ────────────────────────────────────────────────────────────────────
 LM_EVAL_REV="${LM_EVAL_REV:-6d642546f4688648fced259eb3302efd36ece5af}" # v0.4.12 · verified 2026-07-25
-TASKS="arabicmmlu,aratrust,madinahqa,alrage"
+
+# CLAUDE.md §15 lists ArabicMMLU / AraTrust / MadinahQA / ALRAGE as available "via lm-eval tasks".
+# Only the first is true at this pinned commit: `aratrust`, `madinahqa` and `alrage` do not appear
+# anywhere in the harness (grepped, not assumed), and there is no group named `alghafa` either —
+# its subtasks are registered under other names. Asking for them cost a full P4 run on
+# 2026-07-28, which died after building a 10 GB venv with "Tasks not found".
+#
+# arabicmmlu is a group of 46 subtasks and is the benchmark §9.5's regression gate is defined on
+# (fine-tuned within −1 pt of base = no catastrophic forgetting), so it is the one that matters.
+# Adding the OALL-v2 leaderboard groups is a separate, much longer run — validate first.
+TASKS="${SANAD_LM_EVAL_TASKS:-arabicmmlu}"
 NUM_FEWSHOT=0
 # ────────────────────────────────────────────────────────────────────────────
 
@@ -39,6 +49,19 @@ fi
 if [[ -x "$ML_ROOT/.venv/bin/python" ]]; then
     TRAIN_TORCH=$("$ML_ROOT/.venv/bin/python" -c "import torch;print(torch.__version__)" 2>/dev/null || echo "absent")
     echo "→ training venv torch: $TRAIN_TORCH (must stay 2.10.x per ADR-0006)" >&2
+fi
+
+# Validate task names BEFORE loading a model. This is seconds of work and it is the check whose
+# absence wasted the 2026-07-28 run: the task list was only resolved after vLLM had been installed,
+# and a typo'd benchmark name is indistinguishable from a broken environment at that point.
+echo "→ validating tasks: $TASKS" >&2
+if ! "$EVAL_VENV/bin/lm_eval" validate --tasks "$TASKS" 2>&1 | tee /dev/stderr | grep -q "^Validating"; then
+    echo "✗ could not validate tasks — is the harness installed?" >&2
+    exit 1
+fi
+if "$EVAL_VENV/bin/lm_eval" validate --tasks "$TASKS" 2>&1 | grep -q "not found"; then
+    echo "✗ unknown task name(s) in '$TASKS' — list them with: lm_eval ls tasks" >&2
+    exit 1
 fi
 
 mkdir -p "$OUT"
