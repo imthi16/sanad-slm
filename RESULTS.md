@@ -1,7 +1,18 @@
 # SANAD — measured results, run of 2026-07-26 → 28
 
+> **This is a personal portfolio and research project.** It is not a product, was not built for a
+> client, and is not deployed anywhere — there is no production use and no service-level commitment.
+> Its purpose is to demonstrate a reproducible Arabic/English fine-tuning and quantization recipe
+> end to end on one consumer GPU, and it is the evidence base for a workshop paper draft
+> ([`docs/paper/`](docs/paper/)) scoped per §13 P7 to the *recipe, harness and fertility/edge
+> measurements* — explicitly **no frontier-beating claims**.
+>
+> That context sets the scope, not the standard. The measurements below are real and reproducible,
+> and the gaps are labelled honestly — a portfolio piece that overstates its evidence is worth less
+> than one that shows exactly how far it got.
+
 Every number here traces to a file produced by the pipeline (prime directive 6). Figures that were
-not measured are written `—`, never estimated (§8.2). Read the [Limits](#limits--what-this-run-does-not-show)
+not measured are written `—`, never estimated (§8.2). Read the [Scope and limits](#limits--what-this-run-does-not-show)
 section before quoting anything.
 
 **Compute:** one RTX 4090 (24 GB) on an x86_64 Linux workstation for training and AWQ; a separate
@@ -191,7 +202,11 @@ is the 3.75% of the corpus that is hardest to get right.
 
 ---
 
-## 5. Limits — what this run does **not** show
+## 5. Scope and limits — what this run does **not** show
+
+Most of these are *scope boundaries of a portfolio project*, not defects: a comparator matrix and a
+human-validated judge protocol are weeks of work and, for items 3 and 4, another person's time.
+They are listed so nothing here is mistaken for more than it is.
 
 1. **No benchmark numbers.** P4 (lm-eval over ArabicMMLU / AraTrust / MadinahQA / ALRAGE) was not
    run; the GPU was returned to its shared owners instead. The regression gate
