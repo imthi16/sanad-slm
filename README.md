@@ -32,12 +32,20 @@ That is the tax this project measures, and the rule under the sentence is where 
 
 ## Status
 
-> **As of 2026-07-25 — the platform is built and gated; the model pipeline has not run.**
+> **As of 2026-07-28 — P0–P3 and P5 have run. The model exists and is measured.**
 >
-> Scaffold, FastAPI gateway, React dashboard, CI and every quality gate are green
-> (`just check`, 85 tests across three stacks). No data ingested, no model trained, no eval
-> report produced. Every results table below is therefore **deliberately empty** — see
-> [the honest-claims policy](#results). Next milestone: **P1, data.**
+> A ~4B bilingual model was trained (**44 min, peak VRAM 15.59 GB, $0**), quantized two ways with
+> per-language quality gates passed (**Arabic ΔPPL +1.44% AWQ, +2.39% GGUF**), and now answers
+> Arabic and English banking questions **on a CPU-only laptop at 6.19 tok/s** through the real
+> serving path. Full measured detail, with every figure traced to a hashed report:
+> **[`RESULTS.md`](./RESULTS.md)** · **[model card](./docs/model-cards/sanad-qwen3-4b-bank-v0.1.0.md)**
+>
+> **The headline claim below is NOT yet supported.** P4 has not completed, so there are no
+> benchmark scores and no comparator; the domain eval holds 12 of 300 items; and no judge or
+> human-κ evaluation exists. The empty tables further down stay empty on purpose — see
+> [the honest-claims policy](#results). The model also has two known defects (stray `<tool_call>`
+> tokens, and an unvalidated domain answer that quoted USD for an AED product), both recorded
+> rather than cropped.
 
 ## The claim
 
@@ -50,6 +58,12 @@ That is the tax this project measures, and the rule under the sentence is where 
 Not a slogan — a shipped, measured artifact. Every number quoted anywhere in this repository
 traces to a report file in [`ml/evals/reports/`](./ml/evals/reports/) by hash, and judge-based
 claims are invalid without a human-validation κ attached.
+
+**Which half of that claim is currently proven:** the efficiency and sovereignty half. Fine-tuned
+for $0 on one 24 GB GPU ✅ · quantized to AWQ and GGUF with Arabic quality gated per-language ✅ ·
+running air-gapped on commodity CPU with no GPU and no Docker ✅. The **"match a 5–10× larger
+model"** half is unproven and is not claimed anywhere as fact — it needs P4 plus a domain eval that
+does not yet exist.
 
 [`CLAUDE.md`](./CLAUDE.md) is the single source of truth — architecture, prime directives, pins,
 gates, and the phased roadmap. When this README and CLAUDE.md disagree, CLAUDE.md wins.
