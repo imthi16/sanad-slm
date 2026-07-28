@@ -49,12 +49,26 @@ class FakeTokenizer:
         return " | ".join(f"{m['role']}:{m['content']}" for m in conversation)
 
 
-def test_single_example_returns_one_string() -> None:
-    """TRL's probe shape. This is the call that raised UndefinedError on 2026-07-28."""
+def test_single_example_returns_a_one_element_list() -> None:
+    """The probe shape: one example in, a *list* out — `_prepare_dataset` takes `[0]` from it.
+
+    Returning a bare string here raised `Unsloth: The formatting_func should return a list of
+    processed strings` on 2026-07-28.
+    """
     tok = FakeTokenizer()
     out = formatting_func(tok)({"messages": CONVERSATION})
-    assert isinstance(out, str)
-    assert "الحد الأدنى" in out
+    assert isinstance(out, list), "the probe requires a list even for a single example"
+    assert len(out) == 1
+    assert "الحد الأدنى" in out[0]
+
+
+def test_every_shape_returns_a_list_of_strings() -> None:
+    """The one invariant that holds across both input shapes."""
+    fmt = formatting_func(FakeTokenizer())
+    for row in ({"messages": CONVERSATION}, {"messages": [CONVERSATION, CONVERSATION_2]}):
+        out = fmt(row)
+        assert isinstance(out, list)
+        assert all(isinstance(s, str) for s in out)
 
 
 def test_single_example_is_not_split_into_individual_messages() -> None:

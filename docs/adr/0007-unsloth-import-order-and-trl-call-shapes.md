@@ -33,21 +33,30 @@ in Qwen3's vocabulary (its real EOS is `<|im_end|>`), and raises.
 Unsloth prints a `UserWarning` about exactly this on every run. It was visible in the very first
 failure on 2026-07-26 and read as cosmetic. It was not.
 
-**TRL calls `formatting_func` with two different shapes.** Correcting the import order moved the
-failure into `_prepare_dataset`, which probes with a *single* example —
-`formatting_func(next(iter(dataset)))` — before it ever maps over batches. Our function assumed
-the batched shape, so the probe iterated one conversation's individual messages and handed a bare
-`{role, content}` dict to the chat template. That surfaced as
-`jinja2.UndefinedError: dict object has no element 0`, which names neither the function nor the
-shape at fault.
+**`formatting_func`'s input shape varies while its output shape does not.** Correcting the import
+order moved the failure into `_prepare_dataset`, whose contract is asymmetric:
+
+* it first probes with a **single example**, `formatting_func(next(iter(dataset)))`, where
+  `messages` is one conversation — yet still requires a `list` back, because it immediately takes
+  `test_text[0]` to sniff for a duplicate BOS;
+* it then maps with `batched=True`, where `messages` is a list of conversations and the return
+  must hold one string per conversation.
+
+Both halves were got wrong in turn. Assuming the batched shape made the probe iterate one
+conversation's individual messages and hand a bare `{role, content}` dict to the chat template —
+`jinja2.UndefinedError: dict object has no element 0`. Returning a bare string for the probe
+instead raised `Unsloth: The formatting_func should return a list of processed strings`. Neither
+message names the function or the shape at fault.
 
 ## Decisions
 
 1. **`import unsloth` precedes trl/transformers/peft in `sft.py`**, with a comment saying why, and
    `# isort: skip` so a formatter cannot quietly reorder it into breakage. The import is for side
    effects; `# noqa: F401` documents that.
-2. **`formatting_func` accepts both shapes**, disambiguating on the first element rather than on a
-   flag TRL does not pass: a conversation's elements are dicts, a batch's are lists.
+2. **`formatting_func` accepts both input shapes and always returns `list[str]`**, disambiguating
+   on the first element rather than on a `batched` flag that is not passed: a conversation's
+   elements are dicts, a batch's are lists. The uniform return is the invariant worth remembering —
+   a single example yields a one-element list, not a string.
 3. **Both are pinned by static, dependency-free tests** (`tests/test_formatting_and_import_order.py`).
    The import order is asserted by walking `sft.py`'s AST — no torch, no CUDA, no weights — so CI
    catches a reordering that would otherwise only appear minutes into a GPU run. The call shapes
