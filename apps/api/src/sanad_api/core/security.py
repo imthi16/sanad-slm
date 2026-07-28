@@ -11,9 +11,14 @@ import hmac
 import time
 from typing import Annotated, Any
 
+import structlog
 from fastapi import Depends, HTTPException, Request
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
+
+log = structlog.get_logger()
 
 _CSP = "default-src 'self'; frame-ancestors 'none'; base-uri 'self'"
 
@@ -78,14 +83,27 @@ async def rate_limit(request: Request) -> None:
         if (api_key and settings.mode != "dev")
         else (request.client.host if request.client else "anon")
     )
-    allowed = await redis.eval(
-        _BUCKET_LUA,
-        1,
-        f"rl:{ident}",
-        str(settings.rate_limit_rps),
-        str(settings.rate_limit_burst),
-        str(time.time()),
-    )
+    # redis-py connects lazily, so `redis is not None` above proves only that a client object
+    # exists — not that anything answers. An unreachable Redis therefore surfaced here as a 500 and
+    # took the whole chat endpoint down with it, which is the wrong failure for this project: `edge`
+    # is a single air-gapped CPU box, and `/readyz` already reports redis:false and degrades. Fail
+    # open on infra errors, matching the `redis is None` branch above.
+    #
+    # This is a deliberate availability-over-enforcement trade, and it is only safe because the
+    # limiter is DoS protection rather than authorization: losing it cannot grant access. It is
+    # logged at warning so a silently unlimited deployment is visible rather than assumed.
+    try:
+        allowed = await redis.eval(
+            _BUCKET_LUA,
+            1,
+            f"rl:{ident}",
+            str(settings.rate_limit_rps),
+            str(settings.rate_limit_burst),
+            str(time.time()),
+        )
+    except (RedisConnectionError, RedisTimeoutError, OSError) as exc:
+        log.warning("rate_limit_degraded", error=str(exc), mode=settings.mode)
+        return
     if not int(allowed):
         raise HTTPException(status_code=429, detail="rate limit exceeded")
 
