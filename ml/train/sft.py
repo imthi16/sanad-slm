@@ -124,6 +124,15 @@ def main() -> None:
     cfg = load_config(args.config)
     lora, tr, out = cfg["lora"], cfg["train"], cfg["outputs"]
 
+    # Unsloth FIRST, before trl/transformers/peft — it patches them at import time by rebinding
+    # `trl.SFTTrainer` and `trl.SFTConfig` to its own subclasses. A name bound from trl *before*
+    # that keeps pointing at the unpatched class, so the run drives an Unsloth-patched model and
+    # tokenizer through stock TRL. That mismatch is what raised
+    # `eos_token ('<EOS_TOKEN>') is not found in the vocabulary` on 2026-07-28: Unsloth's trainer
+    # resolves that sentinel, stock TRL validates it literally and rejects it (ADR-0007).
+    # Unsloth prints a UserWarning about this; it is load-bearing, not cosmetic.
+    import unsloth  # noqa: F401  # isort: skip  — import for side effects, order matters
+
     import mlflow
     import torch
     from chat_template import assert_non_thinking, format_for_sft, formatting_func

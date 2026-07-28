@@ -34,10 +34,24 @@ def format_for_generation(tokenizer: _Tokenizer, messages: list[dict[str, str]])
 
 
 def formatting_func(tokenizer: _Tokenizer) -> Any:
-    """TRL SFTTrainer `formatting_func` over record-schema rows."""
+    """TRL SFTTrainer `formatting_func` over record-schema rows.
 
-    def _fmt(batch: dict[str, list[Any]]) -> list[str]:
-        return [format_for_sft(tokenizer, msgs) for msgs in batch["messages"]]
+    Handles both shapes TRL passes, because it passes both. `_prepare_dataset` first probes with a
+    *single* example — `formatting_func(next(iter(dataset)))`, where `messages` is one
+    conversation, a list of `{role, content}` dicts — and only afterwards maps over batches, where
+    `messages` is a list of conversations. Assuming the batched shape made the probe iterate one
+    conversation's individual messages and hand a bare dict to the chat template, which failed as
+    `jinja2.UndefinedError: dict object has no element 0` rather than as anything self-describing.
+
+    Disambiguated on the first element rather than on a `batched` flag: TRL does not pass one, and
+    the two shapes are distinguishable — a conversation's elements are dicts, a batch's are lists.
+    """
+
+    def _fmt(row: dict[str, Any]) -> str | list[str]:
+        messages = row["messages"]
+        if messages and isinstance(messages[0], dict):
+            return format_for_sft(tokenizer, messages)  # one conversation → one string
+        return [format_for_sft(tokenizer, conv) for conv in messages]
 
     return _fmt
 
