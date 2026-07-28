@@ -31,6 +31,13 @@ REPORTS = ML_ROOT / "evals" / "reports"
 THRESHOLDS = {"awq": 0.03, "gguf": 0.05}
 MAX_ARABICMMLU_DROP = 1.0
 
+#: A quantized model may land a hair *below* its baseline from noise, but not meaningfully below.
+#: On 2026-07-28 the GGUF gate reported −39.5% on English and passed, because the check was
+#: one-sided. The cause was measuring the baseline with transformers and the candidate with
+#: llama-perplexity — different tokenization, different context windows, incomparable numbers.
+#: A large negative delta is therefore evidence the harness is wrong, not that 4-bit beat bf16.
+MAX_IMPLAUSIBLE_GAIN = 0.02
+
 
 def kind_of(model_path: Path) -> str:
     return "gguf" if model_path.suffix == ".gguf" else "awq"
@@ -100,6 +107,13 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--model", type=Path, required=True, help="quantized model (dir or .gguf)")
     ap.add_argument("--baseline", type=Path, default=ML_ROOT / "out" / "merged-bf16")
+    ap.add_argument(
+        "--baseline-gguf",
+        type=Path,
+        default=ML_ROOT / "out" / "sanad-f16.gguf",
+        help="f16 GGUF baseline; a GGUF candidate must be measured against this, not the HF "
+        "checkpoint, so both sides go through llama-perplexity",
+    )
     args = ap.parse_args()
 
     from _lib import read_jsonl, script_ratios
@@ -114,11 +128,30 @@ def main() -> None:
 
     kind = kind_of(args.model)
     threshold = THRESHOLDS[kind]
-    quant_fn = ppl_gguf if kind == "gguf" else ppl_hf
+
+    # Measure both sides the same way. transformers and llama-perplexity disagree by tens of
+    # percent on identical weights — they tokenize differently and window context differently —
+    # so a cross-runtime delta says nothing about quantization loss.
+    if kind == "gguf":
+        if not args.baseline_gguf.exists():
+            raise SystemExit(
+                f"GGUF baseline missing: {args.baseline_gguf}. A GGUF candidate must be compared "
+                "against the f16 GGUF through llama-perplexity; comparing it to the HF checkpoint "
+                "measures the gap between two runtimes, not the cost of quantization."
+            )
+        baseline_ref: Path = args.baseline_gguf
+        base_fn = ppl_gguf
+        quant_fn = ppl_gguf
+    else:
+        baseline_ref = args.baseline
+        base_fn = ppl_hf
+        quant_fn = ppl_hf
+
+    log.info("ppl_setup", kind=kind, baseline=str(baseline_ref), candidate=str(args.model))
 
     results = {}
     for label, subset in (("pooled", texts), ("ar", ar_texts), ("en", en_texts)):
-        base_ppl = ppl_hf(args.baseline, subset)
+        base_ppl = base_fn(baseline_ref, subset)
         quant_ppl = quant_fn(args.model, subset)
         delta = (quant_ppl - base_ppl) / base_ppl
         results[label] = {"base": base_ppl, "quant": quant_ppl, "delta": delta}
@@ -130,11 +163,25 @@ def main() -> None:
             delta_pct=round(delta * 100, 2),
         )
 
-    report = {"model": str(args.model), "kind": kind, "threshold": threshold, "ppl": results}
+    report = {
+        "model": str(args.model),
+        "kind": kind,
+        "threshold": threshold,
+        "baseline": str(baseline_ref),
+        "ppl": results,
+    }
     failures = [
         f"{label}: ΔPPL {r['delta']:.1%} > {threshold:.0%}"
         for label, r in results.items()
         if r["delta"] > threshold
+    ]
+    # Two-sided on purpose. A quantized model scoring far *better* than its baseline is a broken
+    # measurement, and a one-sided gate waves it through as a triumph.
+    failures += [
+        f"{label}: ΔPPL {r['delta']:.1%} is implausibly good — the baseline and the candidate "
+        "were almost certainly not measured the same way"
+        for label, r in results.items()
+        if r["delta"] < -MAX_IMPLAUSIBLE_GAIN
     ]
     drop = arabicmmlu_drop()
     if drop is not None:
