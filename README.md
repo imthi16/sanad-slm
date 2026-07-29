@@ -14,11 +14,11 @@
 
 </div>
 
-![The Sanad homepage: a bilingual banking sentence set in Fraunces and Aref Ruqaa, with a measured rule beneath it broken into one dash per token — three dashes under each Arabic word, one under each English word](docs/screenshots/home-en.png)
+![The Sanad homepage: a bilingual banking sentence set in Fraunces and Aref Ruqaa, with a measured rule beneath it broken into one dash per token — two or three dashes under each Arabic word, one under each English word, and a ledger below pricing every tokenizer on the same sentence](docs/screenshots/home-en.png)
 
 <div align="center">
 
-**Arabic words break into four or five tokens where English words stay whole.**
+**Arabic words break into several tokens where English words stay whole.**
 That is the tax this project measures, and the rule under the sentence is where it shows.
 
 [Quickstart](#quickstart) · [Architecture](#architecture) · [Evaluation](#evaluation-the-credibility-core) · [Commands](#command-surface) · [Roadmap](#roadmap) · [**CLAUDE.md**](./CLAUDE.md)
@@ -56,20 +56,30 @@ That is the tax this project measures, and the rule under the sentence is where 
 
 The homepage hero, driven live. One bilingual banking sentence stays fixed while the measured rule
 beneath it **re-cuts under unchanged text** as the sentence is priced through each tokenizer.
-Arabic words fall into four or five dashes where English words stay whole. The ledger prices all
-five at once, so the comparison is a column you read rather than a sequence you have to remember.
+Arabic words fall into two or three dashes under Qwen3 where English words stay whole; under ALLaM's
+Arabic-native vocabulary most of them survive as one. The ledger prices every tokenizer at once, so
+the comparison is a column you read rather than a sequence you have to remember.
 
-![The Sanad Specimen: a bilingual banking sentence set intact in Fraunces and Aref Ruqaa, with a measured rule beneath it broken into one dash per token. As each tokenizer is selected in the ledger below, the rule re-cuts — the Arabic half resolving into progressively finer dashes while the English half stays whole](docs/screenshots/specimen-demo.gif)
+![The Sanad Specimen: a bilingual banking sentence set intact in Fraunces and Aref Ruqaa, with a measured rule beneath it broken into one dash per token. As each tokenizer is selected in the ledger below, the rule re-cuts under unchanged text — the Arabic half regrouping into coarser or finer dashes while the English half stays whole. The ledger lists five tokenizers; the two gated ones show an em-dash for every column](docs/screenshots/specimen-demo.gif)
 
-> **The token counts in this recording are fixture data, not measurements.** `just fertility`
-> cannot run yet: the three frozen corpora it measures over have not been collected
-> ([why](ml/evals/fertility/corpora/README.md)), and two of the five tokenizers sit behind manual
-> access gates. The layout, type, bidi handling and interaction are real; the **digits are
-> placeholders** whose ordering matches each tokenizer's known Arabic fertility. They are never
-> quoted as results anywhere in this repository.
+> **This is real tokenizer output — counts and dash boundaries both.** Every number and every cut
+> comes from `POST /v1/tokenize/fertility`'s own service code run over the `tokenizer.json` files
+> `just sync-tokenizers` fetches, at the revisions recorded in `tokenizers.manifest.json`; the
+> payload is committed at
+> [`docs/screenshots/specimen-demo-payload.json`](docs/screenshots/specimen-demo-payload.json) and
+> the recording is reproducible with `just capture-specimen`.
+>
+> Two caveats, both visible in the frame rather than hidden here. **`jais-family` and `llama-3.2`
+> read `—`**: they are gated repositories awaiting manual approval (§15), and an unmeasured row
+> prints an em-dash rather than a plausible number. And this prices **one sentence**, not the
+> corpus-level fertility benchmark — `just fertility` still cannot run, because the three frozen
+> corpora have not been collected ([why](ml/evals/fertility/corpora/README.md)). Treat the digits
+> as a live demonstration of the mechanism, not as the project's fertility result.
 
-Run it yourself with no GPU and no network — see [Quickstart](#quickstart). Every measured number
-in the project, with the report hash behind it, is in **[`RESULTS.md`](./RESULTS.md)**.
+Run it yourself with no GPU — see [Quickstart](#quickstart). One online step is needed first
+(`just sync-tokenizers`, a few MB of vocabularies); after that the hero works air-gapped, which is
+the whole point of pre-syncing them. Every measured number in the project, with the report hash
+behind it, is in **[`RESULTS.md`](./RESULTS.md)**.
 
 ## The claim
 
@@ -102,8 +112,9 @@ rather than tabular.
 
 **The Specimen** is the homepage hero. One bilingual banking sentence is set intact, at display
 size, in the dual-script pairing; beneath it runs a measured rule broken into **one dash per
-token**. Switch tokenizer and the rule re-cuts under unchanged text. Arabic words fall into four
-or five dashes; English words stay whole.
+token**. Switch tokenizer and the rule re-cuts under unchanged text: Arabic words split into
+several dashes while English words stay whole, and *how many* is the tokenizer's own choice —
+2.42 tokens/word under Qwen3 against 1.67 under Arabic-native ALLaM on the sentence recorded above.
 
 Token marks sit *under* the text and never inside it, because text shaping does not cross element
 boundaries: a `<span>` per token severs Arabic's joins and renders `التوفير` as isolated
@@ -115,16 +126,18 @@ Details in [ADR-0005](./docs/adr/0005-specimen-hero-rubrication-design.md).
 |---|---|
 | [![الرئيسية بالعربية: العنوان بخط عريف رقعة، والجملة تحتها خط مقطَّع بعدد الرموز](docs/screenshots/home-ar.png)](docs/screenshots/home-ar.png) | [![مختبر الخصوبة الرمزية: جدول الرموز لكل كلمة مع مقاطع كل مُرمِّز](docs/screenshots/tokenizer-lab.png)](docs/screenshots/tokenizer-lab.png) |
 
-> **About these captures.** The layout, type and palette are live. The token figures come from
-> the repository's [e2e fixture](./apps/web/e2e/fixtures/fertility.json), **not from real
-> tokenizers.** `just sync-tokenizers` has now fetched **3 of the 5** (Qwen3, Falcon-H1, and ALLaM
-> converted from sentencepiece — each with its source commit recorded in
-> `out/tokenizers/tokenizers.manifest.json`); jais and Llama-3.2 are gated and need a human to accept
-> terms. But `just fertility` still cannot run: the **three frozen corpora it measures over do not
-> exist yet** (`evals/fertility/corpora/` holds only its README). Until they are collected under the
-> licence constraints documented there, the hero's digits remain fixture data. The fixture's
-> *ordering* matches each tokenizer's known Arabic fertility; its digits are not measurements and are
-> never quoted as such.
+> **About these captures.** The Specimen images — the banner at the top, the Arabic homepage on the
+> left, and the GIF above — carry **real tokenizer output** for the sentence they show, from the
+> **3 of 5** tokenizers `just sync-tokenizers` can fetch (Qwen3, Falcon-H1, and ALLaM converted from
+> sentencepiece — each with its source commit in `out/tokenizers/tokenizers.manifest.json`). jais and
+> Llama-3.2 are gated, so their rows read `—`.
+>
+> **The Fertility Lab capture on the right is the exception**: that page reads the corpus-level
+> report, and `just fertility` still cannot run — the **three frozen corpora do not exist yet**
+> (`evals/fertility/corpora/` holds only its README). Its numbers are
+> [e2e fixture data](./apps/web/e2e/fixtures/fertility.json), not measurements, and are never quoted
+> as such. Sentence-level and corpus-level fertility are different claims, and only the first one is
+> currently measurable.
 
 Pages: `/` Specimen + results ledger · `/chat` bilingual streaming chat · `/evals` benchmark and
 judge dashboard · `/tokenizer` Fertility Lab · `/edge` live edge telemetry · `/registry` signed
@@ -197,15 +210,25 @@ Node 22+ with `pnpm` ≥ 10 · Docker (for the dev stack).
 ```bash
 git clone https://github.com/imthi16/sanad-slm.git && cd sanad-slm
 
-just setup     # uv sync (ml + api) · pnpm install · pre-commit install
-just dev       # postgres + redis + minio + mlflow + prometheus + grafana
-               #   + api (uvicorn --reload :8000) + web (vite :5173)
-just check     # the full PR gate: lint + types + tests (all three stacks)
-               #   + data-gate + verify-no-cdn          <- currently green
+just setup            # uv sync (ml + api) · pnpm install · pre-commit install
+just sync-tokenizers  # the five tokenizer.json files the hero measures (a few MB — never weights)
+just dev              # postgres + redis + minio + mlflow + prometheus + grafana
+                      #   + api (uvicorn --reload :8000) + web (vite :5173)
+just check            # the full PR gate: lint + types + tests (all three stacks)
+                      #   + data-gate + verify-no-cdn          <- currently green
 ```
 
 Then open **http://localhost:5173** and flip the language toggle — the whole app goes RTL, and
 the headline changes typeface with it.
+
+**`just sync-tokenizers` is what makes the hero live**, and it is the one step that needs network
+access. It writes `ml/out/tokenizers/<org>__<model>/tokenizer.json`, which `just dev` passes to the
+API as `SANAD_TOKENIZERS_DIR` (the built-in default, `/models/tokenizers`, is the in-container path
+the Helm chart's initContainer mirrors into — wrong for a locally run uvicorn, and the reason a
+skipped sync shows up as a `503` from `/v1/tokenize/fertility` and an empty Specimen). Three of the
+five land with no credentials; `jais-family` needs its terms accepted once with an `HF_TOKEN`
+present and `llama-3.2` needs manual approval from Meta (§15), and until then those rows read `—`.
+Everything else in the app — chat, evals, edge, registry — runs without this step.
 
 <details>
 <summary><b>Air-gapped demo (one box, Wi-Fi off)</b></summary>
@@ -411,12 +434,17 @@ ALLaM-7B's 10.68 pt win is not spread evenly, and the structure is a better find
 | Social Science | 66.55% | 58.42% | +8.13 |
 | **STEM** | 63.42% | 61.89% | **+1.53** |
 
-The gap is **monotone in how much Arabic cultural and linguistic knowledge the category needs**.
-Humanities is a twenty-point rout; STEM is +1.53 — around 1.3σ, barely distinguishable.
-Arabic-native pretraining buys Arabic humanities, language and culture, and buys almost nothing on
-maths and science, where the underlying competence transfers across languages. A single pooled
-score would have destroyed that structure — the same argument this project makes for per-language
-quantization gates, arriving independently on the benchmark side.
+The gap is **not uniform**, and its ordering tracks how much Arabic cultural and linguistic
+knowledge the category needs. Humanities is a twenty-point rout; STEM is +1.53 — around 1.3σ,
+barely distinguishable.
+
+**The pattern is reported, not explained.** These two checkpoints differ in size, family,
+architecture, pretraining corpus and instruction tuning all at once, so nothing here isolates
+*why*: "Arabic-native pretraining buys cultural knowledge and maths transfers across languages" is
+a tempting reading, but a scale effect concentrated on knowledge-heavy subtasks fits the same
+numbers, and no ablation was run to separate them. What the breakdown does prove is methodological —
+a single pooled score would have destroyed the structure entirely, the same argument this project
+makes for per-language quantization gates, arriving independently on the benchmark side.
 
 The release gate is honest by construction: the fine-tuned model must beat base by **≥ +5 pts**
 in-domain while staying within **−1 pt** on ArabicMMLU (no catastrophic forgetting), or the build
@@ -428,7 +456,7 @@ Everything below runs in CI and locally via `just check` — **currently green e
 
 | Layer | Tools | Gate |
 |---|---|---|
-| `ml/` | ruff · mypy --strict · pytest | **53 passed, 2 skipped** — schema validators, PII scan, license gate blocks a planted non-commercial record |
+| `ml/` | ruff · mypy --strict · pytest | **57 passed, 2 skipped** — schema validators, PII scan, license gate blocks a planted non-commercial record, deterministic training-metrics export |
 | `apps/api` | ruff · mypy --strict · pytest · schemathesis | **34 passed, 92% coverage** — SSE chunk integrity, PII scrubbing (AR+EN digits), sovereign config forcing; gate is ≥ 80% |
 | `apps/web` | biome · tsc --strict · vitest · Playwright | **13 unit + 23 e2e** — grapheme buffering, atlas shaping safety, numeral systems; RTL+LTR snapshots for all six pages against fixtures; deterministic palette and dual-script font assertions |
 | data | `just data-gate` | licenses ∈ {Apache-2.0, CC-BY-4.0, MIT} for the commercial profile |

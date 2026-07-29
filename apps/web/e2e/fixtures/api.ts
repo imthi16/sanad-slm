@@ -11,8 +11,12 @@ import type { Page } from "@playwright/test";
  * may be quoted in the README, the paper, a model card, or anywhere else. Their only job is to
  * give each page enough shape to render.
  *
- * The README's demo GIF is recorded against these fixtures and says so at the point of use —
- * showing them with that disclosure is the one permitted appearance; quoting them is not.
+ * These fixtures are **not** what the README's demo GIF shows. That recording populates the page
+ * from here but overrides `/v1/tokenize/fertility` with real measured tokenizer output
+ * (`scripts/capture-specimen.spec.ts`), because the Specimen's dash boundaries are a claim about
+ * what a tokenizer did to a string — and `fertility.json`'s hand-written offsets are not that.
+ * Its `jais-family` entry even inverts the finding, splitting the English words while leaving the
+ * Arabic whole. Fine for exercising the layout; a lie if published.
  *
  * Without this, `/chat`, `/evals`, `/edge` and `/registry` only ever snapshot their empty
  * states — so a regression in a populated table, a heatmap or a streamed message would not

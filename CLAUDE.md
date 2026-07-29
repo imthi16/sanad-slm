@@ -16,7 +16,9 @@ architecture decisions change (and add an ADR in `docs/adr/`).
 > workspaces, biome+tsc+vitest+i18n-sync web, data-gate, verify-no-cdn) and all 23 Playwright
 > tests pass (RTL+LTR for 6 routes, design-token assertions, grapheme-safe streaming).
 > Every measured figure is traced by hash in **[`RESULTS.md`](./RESULTS.md)** — read it before
-> quoting any number.
+> quoting any number. That includes the training run: MLflow's store is not in git, so
+> `just export-metrics` writes a deterministic, hashed export of it (`train_metrics_b8ccaafc.json`)
+> and the VRAM/wall-time/loss figures are read from there, not from an untracked database.
 >
 > **What exists:** 11,239 data records (CIDAR 9,962 native + 1,277 own bank pairs, gate green) ·
 > a fine-tuned model (44 min, peak VRAM **15.59 GB**, **$0**) · AWQ + GGUF artifacts, both
@@ -28,9 +30,11 @@ architecture decisions change (and add an ADR in `docs/adr/`).
 > failing §5.3's accuracy clause, so the shipping path is **bf16 + GGUF Q4_K_M** · the **domain eval
 > still holds 12 of 300 items**, so the "matches a 5–10× larger model" thesis has *no* supporting
 > evidence · **no judges have run and no human-κ sample exists**, so every 3C3H claim is invalid
-> under prime directive 5 · `just fertility` cannot run — the three frozen corpora in
-> `evals/fertility/corpora/` were never collected, so the hero's token digits are **e2e fixture
-> data, not measurements** · the own bank pairs are `provenance: synthetic` and unreviewed.
+> under prime directive 5 · **`just fertility` cannot run** — the three frozen corpora in
+> `evals/fertility/corpora/` were never collected, so there is **no corpus-level fertility result**;
+> the Specimen hero measures a *single sentence* live through 3 of 5 tokenizers
+> (`just sync-tokenizers`, `just capture-specimen`), which is a demonstration of the mechanism and
+> not the §5.4d benchmark · the own bank pairs are `provenance: synthetic` and unreviewed.
 >
 > **Next: P4** — take the domain eval to 300 items, then judges + the 50-item human validation.
 > Nothing downstream (regression gate, headline table, paper claims) is unblocked until that lands.

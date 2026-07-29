@@ -77,9 +77,11 @@ domain SFT should be expected to produce one. Per category, all four move down b
 
 **One comparator was measured, and this model loses to it.** ALLaM-7B-Instruct-preview scores
 **70.01%** — 10.68 points above this model. That is the expected outcome: 1.75× the parameters and
-Arabic-native pretraining, against a general-purpose 4B given 11,239 instruction records. The gap
-is monotone in how much Arabic cultural/linguistic knowledge a category needs — **Humanities +19.99
-pt, STEM only +1.53 pt** — which is what native pretraining actually buys.
+Arabic-native pretraining, against a general-purpose 4B given 11,239 instruction records. The gap is
+uneven, and its ordering tracks how much Arabic cultural/linguistic knowledge a category needs —
+**Humanities +19.99 pt, STEM only +1.53 pt**. That ordering is reported as an observation only: the
+two models differ in scale, family, corpus and instruction tuning at once, and no ablation was run,
+so it cannot be attributed to native pretraining specifically.
 
 It does not contradict this project's thesis (in-domain banking), but it does close off any reading
 of these numbers as general Arabic competitiveness. **jais-6.7b was not measured** (gated repo, the
