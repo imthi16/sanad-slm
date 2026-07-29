@@ -52,6 +52,25 @@ That is the tax this project measures, and the rule under the sentence is where 
 > tokens, and an unvalidated domain answer that quoted USD for an AED product), both recorded
 > rather than cropped.
 
+## Demo
+
+The homepage hero, driven live. One bilingual banking sentence stays fixed while the measured rule
+beneath it **re-cuts under unchanged text** as the sentence is priced through each tokenizer.
+Arabic words fall into four or five dashes where English words stay whole. The ledger prices all
+five at once, so the comparison is a column you read rather than a sequence you have to remember.
+
+![The Sanad Specimen: a bilingual banking sentence set intact in Fraunces and Aref Ruqaa, with a measured rule beneath it broken into one dash per token. As each tokenizer is selected in the ledger below, the rule re-cuts — the Arabic half resolving into progressively finer dashes while the English half stays whole](docs/screenshots/specimen-demo.gif)
+
+> **The token counts in this recording are fixture data, not measurements.** `just fertility`
+> cannot run yet: the three frozen corpora it measures over have not been collected
+> ([why](ml/evals/fertility/corpora/README.md)), and two of the five tokenizers sit behind manual
+> access gates. The layout, type, bidi handling and interaction are real; the **digits are
+> placeholders** whose ordering matches each tokenizer's known Arabic fertility. They are never
+> quoted as results anywhere in this repository.
+
+Run it yourself with no GPU and no network — see [Quickstart](#quickstart). Every measured number
+in the project, with the report hash behind it, is in **[`RESULTS.md`](./RESULTS.md)**.
+
 ## The claim
 
 > A **~4B bilingual SLM**, fine-tuned for **< $50** on a **single 24 GB GPU**, can **match a
@@ -375,9 +394,29 @@ persisted** by default.
 | Training cost | n/a | **$0** (0.73 h local, peak VRAM 15.59 GB) | — | — | — | ✅ measured · < $50 gate |
 
 \* Falcon-H1 is a benchmark comparator only (Falcon-LLM License — never in the shipping path).
-Comparator columns are empty throughout because none of those models was run. "n/a" marks cells where
-the metric does not apply to the base model — the edge artifact and the training cost are properties
-of *this* fine-tune, not of an upstream checkpoint.
+Of the comparator columns only **ALLaM-7B was run**: jais-6.7b is a gated repo whose terms were
+never accepted, and Falcon-H1 has no exact repo id pinned in §15 and was dropped rather than
+guessed. "n/a" marks cells where the metric does not apply to the base model — the edge artifact
+and the training cost are properties of *this* fine-tune, not of an upstream checkpoint.
+
+### Where the comparator's lead actually sits
+
+ALLaM-7B's 10.68 pt win is not spread evenly, and the structure is a better finding than the delta:
+
+| Category | ALLaM-7B | Sanad bf16 | Gap |
+|---|---|---|---|
+| **Humanities** | 74.70% | 54.71% | **+19.99** |
+| Language | 73.57% | 60.81% | +12.76 |
+| Other | 74.15% | 63.08% | +11.07 |
+| Social Science | 66.55% | 58.42% | +8.13 |
+| **STEM** | 63.42% | 61.89% | **+1.53** |
+
+The gap is **monotone in how much Arabic cultural and linguistic knowledge the category needs**.
+Humanities is a twenty-point rout; STEM is +1.53 — around 1.3σ, barely distinguishable.
+Arabic-native pretraining buys Arabic humanities, language and culture, and buys almost nothing on
+maths and science, where the underlying competence transfers across languages. A single pooled
+score would have destroyed that structure — the same argument this project makes for per-language
+quantization gates, arriving independently on the benchmark side.
 
 The release gate is honest by construction: the fine-tuned model must beat base by **≥ +5 pts**
 in-domain while staying within **−1 pt** on ArabicMMLU (no catastrophic forgetting), or the build
@@ -389,9 +428,9 @@ Everything below runs in CI and locally via `just check` — **currently green e
 
 | Layer | Tools | Gate |
 |---|---|---|
-| `ml/` | ruff · mypy --strict · pytest | **16 passed** — schema validators, PII scan, license gate blocks a planted non-commercial record |
+| `ml/` | ruff · mypy --strict · pytest | **53 passed, 2 skipped** — schema validators, PII scan, license gate blocks a planted non-commercial record |
 | `apps/api` | ruff · mypy --strict · pytest · schemathesis | **34 passed, 92% coverage** — SSE chunk integrity, PII scrubbing (AR+EN digits), sovereign config forcing; gate is ≥ 80% |
-| `apps/web` | biome · tsc --strict · vitest · Playwright | **13 unit + 22 e2e** — grapheme buffering, atlas shaping safety, numeral systems; RTL+LTR snapshots for all six pages against fixtures; deterministic palette and dual-script font assertions |
+| `apps/web` | biome · tsc --strict · vitest · Playwright | **13 unit + 23 e2e** — grapheme buffering, atlas shaping safety, numeral systems; RTL+LTR snapshots for all six pages against fixtures; deterministic palette and dual-script font assertions |
 | data | `just data-gate` | licenses ∈ {Apache-2.0, CC-BY-4.0, MIT} for the commercial profile |
 | sovereignty | `just verify-no-cdn` | no fetchable external origins in `web/dist` |
 | sovereignty | `just sovereign-audit` | **26 §10 checks** — CSP, offline overlay, default-deny egress, egress alert, SOPS, judge flags, PII patterns; the 3 cluster-only items are reported, never assumed |
@@ -410,7 +449,7 @@ Phases are PR milestones, each with acceptance criteria in [CLAUDE.md §13](./CL
 | **P1 · Data** | CIDAR ingest, 300 banking pairs, dedup/langid, manifest gate | **done** — 11,239 records (CIDAR 9,962 + 1,277 own), gate green, provenance split published. Caveat: the banking pairs are **synthetic and unreviewed** |
 | **P2 · Train + merge** | QLoRA on the local RTX 4090, MLflow, $0, < 16 GB VRAM | **done** — 0.73 h, peak VRAM **15.59 GB**, **$0**, 78 optimizer steps; merged-bf16 + manifest. Acceptance criteria met |
 | **P3 · Quantize + serve** | AWQ + GGUF+imatrix, ppl-gate, vLLM chart, CPU edge profile | **partial** — both artifacts built and ΔPPL-gated per language; **AWQ withheld** after losing 1.75 pt of ArabicMMLU (its accuracy clause), so shipping is bf16 + GGUF. Edge bench recorded (`x86-local`); the vLLM-on-k3s half is unexercised |
-| **P4 · Eval harness** | full matrix, domain eval frozen, judges + human validation | **partial** — ArabicMMLU measured on fine-tuned + base, forgetting gate passed; no comparator, no domain eval (12/300 items), no judges, no human κ |
+| **P4 · Eval harness** | full matrix, domain eval frozen, judges + human validation | **partial** — ArabicMMLU measured on fine-tuned + base + AWQ, forgetting gate passed; **one comparator ran (ALLaM-7B, +10.68 pt over this model)**, jais still gated. No domain eval (12/300 items), no judges, no human κ |
 | **P5 · Full app** | chat SSE end to end, live Specimen, all pages and scenes | **partial** — streaming **and** non-streaming chat verified end to end against our own GGUF on CPU (`p5_e2e.json`), `x_sanad` metadata intact; `/readyz` red without Postgres/Redis; responses still carry the `<tool_call>` defect |
 | **P6 · Sovereign hardening** | egress-zero 24 h, cosign verify path, checklist green | not started — 3 checklist items need a live cluster |
 | **P7 · Position + publish** | README numbers, model card, workshop paper draft | **partial** — model card and `docs/paper/draft.md` written from measured results; no signed release, no blog post |

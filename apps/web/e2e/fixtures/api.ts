@@ -4,11 +4,15 @@ import type { Page } from "@playwright/test";
 /**
  * Synthetic API responses so the snapshots cover populated layouts, not just empty states.
  *
- * SYNTHETIC — NOT MEASUREMENTS. The pipeline has not run (no data ingested, no model trained,
- * no eval report), so nothing here can be real. Every value that could be mistaken for a result
+ * SYNTHETIC — NOT MEASUREMENTS. These are hand-written shapes, not pipeline output: they predate
+ * the run and were never regenerated from it. Real measured figures live in RESULTS.md and
+ * ml/evals/reports/, and they do not match these. Every value that could be mistaken for a result
  * carries `fixture` in the adjacent label, and prime directive 5 applies: none of these numbers
  * may be quoted in the README, the paper, a model card, or anywhere else. Their only job is to
  * give each page enough shape to render.
+ *
+ * The README's demo GIF is recorded against these fixtures and says so at the point of use —
+ * showing them with that disclosure is the one permitted appearance; quoting them is not.
  *
  * Without this, `/chat`, `/evals`, `/edge` and `/registry` only ever snapshot their empty
  * states — so a regression in a populated table, a heatmap or a streamed message would not
