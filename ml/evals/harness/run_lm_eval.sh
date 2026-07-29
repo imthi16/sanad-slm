@@ -51,9 +51,21 @@ EVAL_VENV="${SANAD_EVAL_VENV:-$ML_ROOT/.venv-eval}"
 if [[ ! -x "$EVAL_VENV/bin/lm_eval" ]]; then
     echo "→ creating isolated eval venv at $EVAL_VENV" >&2
     uv venv "$EVAL_VENV" --python 3.12
-    VIRTUAL_ENV="$EVAL_VENV" uv pip install \
+    # ninja is named explicitly because torch.compile shells out to it at RUNTIME. It currently
+    # arrives as a transitive dep, so an upstream dropping it would surface as an inductor crash
+    # 40 s into a GPU run rather than as a resolution error here.
+    VIRTUAL_ENV="$EVAL_VENV" uv pip install ninja \
         "lm_eval[vllm] @ git+https://github.com/EleutherAI/lm-evaluation-harness@${LM_EVAL_REV}"
 fi
+
+# Put the venv's bin on PATH. Calling "$EVAL_VENV/bin/lm_eval" by absolute path runs the right
+# interpreter but leaves $EVAL_VENV/bin *off* PATH — so vLLM's inductor backend, which shells out
+# to `ninja` by bare name to build its kernels, died with
+#   FileNotFoundError: [Errno 2] No such file or directory: 'ninja'
+# while ninja sat installed in that very venv. Cost the second P4 attempt on 2026-07-29.
+# Console-script build tools are only reachable through PATH; absolute-path invocation is not
+# equivalent to activation.
+export PATH="$EVAL_VENV/bin:$PATH"
 
 # Sanity: the training venv must still hold the torch ADR-0006 pinned. If this ever fails, an
 # eval has leaked into it and the training environment is no longer the one that trained.
