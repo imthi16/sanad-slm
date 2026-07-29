@@ -7,6 +7,10 @@ ML := "ml"
 API := "apps/api"
 WEB := "apps/web"
 COMPOSE := "infra/compose/docker-compose.yml"
+# Where `just sync-tokenizers` puts the tokenizer.json files. The API's own default
+# (/models/tokenizers) is the *container* path the Helm initContainer mirrors into, so a locally
+# run uvicorn has to be pointed here or /v1/tokenize/fertility 503s and the hero stays empty.
+TOKENIZERS := justfile_directory() / "ml/out/tokenizers"
 
 default:
     @just --list
@@ -59,6 +63,12 @@ train cfg="configs/train/qwen3-4b-qlora-dora.yaml":
 merge cfg="configs/train/qwen3-4b-qlora-dora.yaml":
     cd {{ML}} && uv run python train/merge.py --config {{cfg}}
 
+# Run after `just train`, then force-add the report: mlflow.db is not in git, so without this the
+# VRAM/wall-time/loss figures trace to nothing a reader can check (prime directive 6).
+# MLflow run → committable, hashable metrics report in evals/reports/
+export-metrics run_id db="mlflow.db":
+    cd {{ML}} && uv run python train/export_metrics.py --tracking-db {{db}} --run-id {{run_id}}
+
 # llm-compressor AWQ W4A16 (compressed-tensors, vLLM-native)
 quant-awq model="out/merged-bf16":
     cd {{ML}} && uv run python quantize/awq.py --model {{model}} --recipe configs/quant/awq-w4a16.yaml \
@@ -81,13 +91,22 @@ judge run_id:
     cd {{ML}} && uv run python evals/judge/run_judges.py --run-id {{run_id}}
     cd {{ML}} && uv run python evals/judge/agreement.py --run-id {{run_id}}
 
-# regenerate fertility.json (consumed by API + 3D hero)
+# Run before `just dev` or the Specimen hero has nothing to measure. Three of five land without
+# credentials; the two gated repos need terms accepted once (§15) and render as `—` until then.
 # fetch the five tokenizer.json files fertility needs (tokenizers only, never weights)
 sync-tokenizers:
     cd {{ML}} && uv run python evals/fertility/sync_tokenizers.py
 
+# corpus-level fertility.json (consumed by API + Evals page) — needs the three frozen corpora
 fertility:
     cd {{ML}} && uv run python evals/fertility/measure.py --out evals/reports/fertility.json
+
+# Measures the specimen sentence through the API's own fertility service, then drives the built app
+# and captures the re-cut. Needs `just sync-tokenizers` + Pillow; not part of `just check`.
+# re-record the README hero GIF from real tokenizer output
+capture-specimen:
+    cd {{API}} && uv run python scripts/measure_specimen.py --tokenizers-dir "{{TOKENIZERS}}"
+    cd {{WEB}} && pnpm exec playwright test --config playwright.capture.config.ts
 
 # artifacts → MinIO + cosign-signed manifest
 registry-push v:
@@ -98,7 +117,8 @@ registry-push v:
 # dev stack: postgres redis minio mlflow prometheus grafana + api reload + web vite
 dev:
     docker compose -f {{COMPOSE}} up -d postgres redis minio mlflow prometheus grafana
-    (cd {{API}} && uv run uvicorn sanad_api.main:app --reload --port 8000) & \
+    (cd {{API}} && SANAD_TOKENIZERS_DIR="${SANAD_TOKENIZERS_DIR:-{{TOKENIZERS}}}" \
+        uv run uvicorn sanad_api.main:app --reload --port 8000) & \
     (cd {{WEB}} && pnpm dev) & \
     wait
 

@@ -1,0 +1,562 @@
+{
+  "detected_lang": "mixed",
+  "text_words": 12,
+  "tokenizers": {
+    "allam": {
+      "cost_vs_best": 1.0,
+      "segments": [
+        {
+          "end": 4,
+          "id": 25121,
+          "script": "ar",
+          "start": 0,
+          "text": "يخضع"
+        },
+        {
+          "end": 9,
+          "id": 3404,
+          "script": "ar",
+          "start": 4,
+          "text": " حساب"
+        },
+        {
+          "end": 17,
+          "id": 60680,
+          "script": "ar",
+          "start": 9,
+          "text": " التوفير"
+        },
+        {
+          "end": 20,
+          "id": 587,
+          "script": "ar",
+          "start": 17,
+          "text": " لم"
+        },
+        {
+          "end": 23,
+          "id": 9366,
+          "script": "ar",
+          "start": 20,
+          "text": "عدل"
+        },
+        {
+          "end": 29,
+          "id": 16126,
+          "script": "ar",
+          "start": 23,
+          "text": " فائدة"
+        },
+        {
+          "end": 34,
+          "id": 26984,
+          "script": "ar",
+          "start": 29,
+          "text": " سنوي"
+        },
+        {
+          "end": 39,
+          "id": 16339,
+          "script": "ar",
+          "start": 34,
+          "text": " قدره"
+        },
+        {
+          "end": 40,
+          "id": 63619,
+          "script": "en",
+          "start": 39,
+          "text": " "
+        },
+        {
+          "end": 41,
+          "id": 5,
+          "script": "en",
+          "start": 40,
+          "text": "2"
+        },
+        {
+          "end": 42,
+          "id": 63651,
+          "script": "en",
+          "start": 41,
+          "text": "."
+        },
+        {
+          "end": 43,
+          "id": 10,
+          "script": "en",
+          "start": 42,
+          "text": "7"
+        },
+        {
+          "end": 44,
+          "id": 8,
+          "script": "en",
+          "start": 43,
+          "text": "5"
+        },
+        {
+          "end": 45,
+          "id": 63741,
+          "script": "en",
+          "start": 44,
+          "text": "%"
+        },
+        {
+          "end": 53,
+          "id": 4970,
+          "script": "en",
+          "start": 45,
+          "text": " subject"
+        },
+        {
+          "end": 56,
+          "id": 338,
+          "script": "en",
+          "start": 53,
+          "text": " to"
+        },
+        {
+          "end": 58,
+          "id": 415,
+          "script": "en",
+          "start": 56,
+          "text": " C"
+        },
+        {
+          "end": 60,
+          "id": 33049,
+          "script": "en",
+          "start": 58,
+          "text": "BU"
+        },
+        {
+          "end": 62,
+          "id": 24794,
+          "script": "en",
+          "start": 60,
+          "text": "AE"
+        },
+        {
+          "end": 74,
+          "id": 20184,
+          "script": "en",
+          "start": 62,
+          "text": " regulations"
+        }
+      ],
+      "tokens": 20,
+      "tokens_per_word": 1.6667
+    },
+    "falcon-h1": {
+      "cost_vs_best": 1.2,
+      "segments": [
+        {
+          "end": 2,
+          "id": 14521,
+          "script": "ar",
+          "start": 0,
+          "text": "يخ"
+        },
+        {
+          "end": 4,
+          "id": 10625,
+          "script": "ar",
+          "start": 2,
+          "text": "ضع"
+        },
+        {
+          "end": 9,
+          "id": 19464,
+          "script": "ar",
+          "start": 4,
+          "text": " حساب"
+        },
+        {
+          "end": 13,
+          "id": 2006,
+          "script": "ar",
+          "start": 9,
+          "text": " الت"
+        },
+        {
+          "end": 17,
+          "id": 21256,
+          "script": "ar",
+          "start": 13,
+          "text": "وفير"
+        },
+        {
+          "end": 20,
+          "id": 5091,
+          "script": "ar",
+          "start": 17,
+          "text": " لم"
+        },
+        {
+          "end": 23,
+          "id": 68893,
+          "script": "ar",
+          "start": 20,
+          "text": "عدل"
+        },
+        {
+          "end": 25,
+          "id": 1575,
+          "script": "ar",
+          "start": 23,
+          "text": " ف"
+        },
+        {
+          "end": 29,
+          "id": 36381,
+          "script": "ar",
+          "start": 25,
+          "text": "ائدة"
+        },
+        {
+          "end": 34,
+          "id": 74027,
+          "script": "ar",
+          "start": 29,
+          "text": " سنوي"
+        },
+        {
+          "end": 38,
+          "id": 18903,
+          "script": "ar",
+          "start": 34,
+          "text": " قدر"
+        },
+        {
+          "end": 39,
+          "id": 1365,
+          "script": "ar",
+          "start": 38,
+          "text": "ه"
+        },
+        {
+          "end": 40,
+          "id": 1243,
+          "script": "en",
+          "start": 39,
+          "text": " "
+        },
+        {
+          "end": 41,
+          "id": 1053,
+          "script": "en",
+          "start": 40,
+          "text": "2"
+        },
+        {
+          "end": 42,
+          "id": 1049,
+          "script": "en",
+          "start": 41,
+          "text": "."
+        },
+        {
+          "end": 43,
+          "id": 1058,
+          "script": "en",
+          "start": 42,
+          "text": "7"
+        },
+        {
+          "end": 44,
+          "id": 1056,
+          "script": "en",
+          "start": 43,
+          "text": "5"
+        },
+        {
+          "end": 45,
+          "id": 1040,
+          "script": "en",
+          "start": 44,
+          "text": "%"
+        },
+        {
+          "end": 53,
+          "id": 6090,
+          "script": "en",
+          "start": 45,
+          "text": " subject"
+        },
+        {
+          "end": 56,
+          "id": 1343,
+          "script": "en",
+          "start": 53,
+          "text": " to"
+        },
+        {
+          "end": 58,
+          "id": 1413,
+          "script": "en",
+          "start": 56,
+          "text": " C"
+        },
+        {
+          "end": 60,
+          "id": 9151,
+          "script": "en",
+          "start": 58,
+          "text": "BU"
+        },
+        {
+          "end": 62,
+          "id": 7834,
+          "script": "en",
+          "start": 60,
+          "text": "AE"
+        },
+        {
+          "end": 74,
+          "id": 31872,
+          "script": "en",
+          "start": 62,
+          "text": " regulations"
+        }
+      ],
+      "tokens": 24,
+      "tokens_per_word": 2.0
+    },
+    "qwen3": {
+      "cost_vs_best": 1.45,
+      "segments": [
+        {
+          "end": 2,
+          "id": 124565,
+          "script": "ar",
+          "start": 0,
+          "text": "يخ"
+        },
+        {
+          "end": 4,
+          "id": 125704,
+          "script": "ar",
+          "start": 2,
+          "text": "ضع"
+        },
+        {
+          "end": 6,
+          "id": 68238,
+          "script": "ar",
+          "start": 4,
+          "text": " ح"
+        },
+        {
+          "end": 9,
+          "id": 136176,
+          "script": "ar",
+          "start": 6,
+          "text": "ساب"
+        },
+        {
+          "end": 13,
+          "id": 94957,
+          "script": "ar",
+          "start": 9,
+          "text": " الت"
+        },
+        {
+          "end": 15,
+          "id": 124387,
+          "script": "ar",
+          "start": 13,
+          "text": "وف"
+        },
+        {
+          "end": 17,
+          "id": 93543,
+          "script": "ar",
+          "start": 15,
+          "text": "ير"
+        },
+        {
+          "end": 20,
+          "id": 126208,
+          "script": "ar",
+          "start": 17,
+          "text": " لم"
+        },
+        {
+          "end": 23,
+          "id": 127614,
+          "script": "ar",
+          "start": 20,
+          "text": "عدل"
+        },
+        {
+          "end": 25,
+          "id": 45577,
+          "script": "ar",
+          "start": 23,
+          "text": " ف"
+        },
+        {
+          "end": 27,
+          "id": 123829,
+          "script": "ar",
+          "start": 25,
+          "text": "ائ"
+        },
+        {
+          "end": 29,
+          "id": 124267,
+          "script": "ar",
+          "start": 27,
+          "text": "دة"
+        },
+        {
+          "end": 32,
+          "id": 126760,
+          "script": "ar",
+          "start": 29,
+          "text": " سن"
+        },
+        {
+          "end": 34,
+          "id": 124623,
+          "script": "ar",
+          "start": 32,
+          "text": "وي"
+        },
+        {
+          "end": 36,
+          "id": 77703,
+          "script": "ar",
+          "start": 34,
+          "text": " ق"
+        },
+        {
+          "end": 38,
+          "id": 124144,
+          "script": "ar",
+          "start": 36,
+          "text": "در"
+        },
+        {
+          "end": 39,
+          "id": 16157,
+          "script": "ar",
+          "start": 38,
+          "text": "ه"
+        },
+        {
+          "end": 40,
+          "id": 220,
+          "script": "en",
+          "start": 39,
+          "text": " "
+        },
+        {
+          "end": 41,
+          "id": 17,
+          "script": "en",
+          "start": 40,
+          "text": "2"
+        },
+        {
+          "end": 42,
+          "id": 13,
+          "script": "en",
+          "start": 41,
+          "text": "."
+        },
+        {
+          "end": 43,
+          "id": 22,
+          "script": "en",
+          "start": 42,
+          "text": "7"
+        },
+        {
+          "end": 44,
+          "id": 20,
+          "script": "en",
+          "start": 43,
+          "text": "5"
+        },
+        {
+          "end": 45,
+          "id": 4,
+          "script": "en",
+          "start": 44,
+          "text": "%"
+        },
+        {
+          "end": 53,
+          "id": 3832,
+          "script": "en",
+          "start": 45,
+          "text": " subject"
+        },
+        {
+          "end": 56,
+          "id": 311,
+          "script": "en",
+          "start": 53,
+          "text": " to"
+        },
+        {
+          "end": 58,
+          "id": 356,
+          "script": "en",
+          "start": 56,
+          "text": " C"
+        },
+        {
+          "end": 60,
+          "id": 14928,
+          "script": "en",
+          "start": 58,
+          "text": "BU"
+        },
+        {
+          "end": 62,
+          "id": 13669,
+          "script": "en",
+          "start": 60,
+          "text": "AE"
+        },
+        {
+          "end": 74,
+          "id": 14305,
+          "script": "en",
+          "start": 62,
+          "text": " regulations"
+        }
+      ],
+      "tokens": 29,
+      "tokens_per_word": 2.4167
+    }
+  },
+  "x_provenance": {
+    "absent": {
+      "jais-family": "not synced — gated repository, manual access approval outstanding",
+      "llama-3.2": "not synced — gated repository, manual access approval outstanding"
+    },
+    "kind": "measured",
+    "note": "Real tokenizer output for one sentence — the same call /v1/tokenize/fertility serves. NOT the corpus-level fertility benchmark (§5.4d), which needs the three frozen corpora and is not runnable yet. Do not quote as a fertility result.",
+    "produced_by": "apps/api/scripts/measure_specimen.py via services.fertility.measure_sync",
+    "text": "يخضع حساب التوفير لمعدل فائدة سنوي قدره 2.75% subject to CBUAE regulations",
+    "tokenizers": {
+      "allam": {
+        "model_id": "humain-ai/ALLaM-7B-Instruct-preview",
+        "revision": "a28dd1e67420cde72d3629c8633a974cf7d9c366 (converted-from-sentencepiece)"
+      },
+      "falcon-h1": {
+        "model_id": "tiiuae/Falcon-H1-7B-Instruct",
+        "revision": "41e72f27effbab80cd45b6e884688452253a3686"
+      },
+      "qwen3": {
+        "model_id": "Qwen/Qwen3-4B-Instruct-2507",
+        "revision": "cdbee75f17c01a7cc42f958dc650907174af0554"
+      }
+    }
+  }
+}

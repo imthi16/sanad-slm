@@ -1,0 +1,158 @@
+{
+  "cost": {
+    "basis": "local RTX 4090 workstation, ADR-0003/0004 — no compute was purchased. MLflow's cost_usd metric is a cloud-equivalent estimate (train_hours x SANAD_GPU_USD_HR, default $0.60/h) and is not a spend.",
+    "usd_actual": 0.0
+  },
+  "metric_history": {
+    "eval_loss": [
+      {
+        "step": 26,
+        "value": 1.793160080909729
+      },
+      {
+        "step": 52,
+        "value": 1.6911054849624634
+      },
+      {
+        "step": 78,
+        "value": 1.676362156867981
+      }
+    ],
+    "grad_norm": [
+      {
+        "step": 10,
+        "value": 0.8356712460517883
+      },
+      {
+        "step": 20,
+        "value": 0.2594333291053772
+      },
+      {
+        "step": 30,
+        "value": 0.1130935326218605
+      },
+      {
+        "step": 40,
+        "value": 0.10804605484008789
+      },
+      {
+        "step": 50,
+        "value": 0.10213407874107361
+      },
+      {
+        "step": 60,
+        "value": 0.08670300990343094
+      },
+      {
+        "step": 70,
+        "value": 0.09648735076189041
+      }
+    ],
+    "learning_rate": [
+      {
+        "step": 10,
+        "value": 0.0001968583161128631
+      },
+      {
+        "step": 20,
+        "value": 0.000178369345732584
+      },
+      {
+        "step": 30,
+        "value": 0.00014632960351198618
+      },
+      {
+        "step": 40,
+        "value": 0.00010627905195293135
+      },
+      {
+        "step": 50,
+        "value": 6.51427952678185e-05
+      },
+      {
+        "step": 60,
+        "value": 3.0033665948663448e-05
+      },
+      {
+        "step": 70,
+        "value": 7.022351411174866e-06
+      }
+    ],
+    "loss": [
+      {
+        "step": 10,
+        "value": 2.6732
+      },
+      {
+        "step": 20,
+        "value": 1.9743
+      },
+      {
+        "step": 30,
+        "value": 1.8088
+      },
+      {
+        "step": 40,
+        "value": 1.7688
+      },
+      {
+        "step": 50,
+        "value": 1.7094
+      },
+      {
+        "step": 60,
+        "value": 1.686
+      },
+      {
+        "step": 70,
+        "value": 1.6888
+      }
+    ]
+  },
+  "metrics": {
+    "epoch": 3.0,
+    "eval_loss": 1.676362156867981,
+    "peak_vram_gb": 15.594489344,
+    "total_flos": 1.03532663691648e+17,
+    "train_hours": 0.732738463984998,
+    "train_loss": 1.8793542079436474,
+    "train_runtime": 2636.3189,
+    "train_samples_per_second": 0.459,
+    "train_steps_per_second": 0.03
+  },
+  "notes": "wall_clock_seconds spans process start to finish (model load, merge, save); metrics.train_runtime is the SFTTrainer training loop alone, and is the figure quoted as wall time.",
+  "params": {
+    "base_model": "Qwen/Qwen3-4B-Instruct-2507",
+    "bf16": "True",
+    "config_sha256": "4a70cdc191edc8cd6d77c15edafc579f82d6fc6845349cb1cfe482daec573fbc",
+    "effective_batch": "16",
+    "epochs": "3",
+    "gradient_accumulation_steps": "4",
+    "lora_r": "16",
+    "lr": "0.0002",
+    "lr_scheduler_type": "cosine",
+    "max_seq_len": "4096",
+    "neftune_noise_alpha": "5",
+    "optim": "adamw_8bit",
+    "packing": "True",
+    "per_device_train_batch_size": "4",
+    "revision": "cdbee75f17c01a7cc42f958dc650907174af0554",
+    "seed": "3407",
+    "target_modules": "down_proj,gate_proj,k_proj,o_proj,q_proj,up_proj,v_proj",
+    "transformers_version": "4.57.6",
+    "unsloth_version": "2026.7.5",
+    "use_dora": "True",
+    "warmup_ratio": "0.03"
+  },
+  "schema": "sanad.train_metrics/v1",
+  "source": {
+    "ended_utc": "2026-07-28T04:59:01+00:00",
+    "experiment": "sanad-sft",
+    "run_id": "b8ccaafcb55b45b6a0b09062e9d9d05e",
+    "run_name": "hilarious-shad-242",
+    "started_utc": "2026-07-28T04:03:45+00:00",
+    "status": "FINISHED",
+    "tracking_store": "mlflow sqlite (not in git — see RESULTS.md §Traceability)",
+    "wall_clock_seconds": 3315.709
+  }
+}

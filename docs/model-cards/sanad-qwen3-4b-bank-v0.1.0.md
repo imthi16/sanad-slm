@@ -77,9 +77,11 @@ domain SFT should be expected to produce one. Per category, all four move down b
 
 **One comparator was measured, and this model loses to it.** ALLaM-7B-Instruct-preview scores
 **70.01%** — 10.68 points above this model. That is the expected outcome: 1.75× the parameters and
-Arabic-native pretraining, against a general-purpose 4B given 11,239 instruction records. The gap
-is monotone in how much Arabic cultural/linguistic knowledge a category needs — **Humanities +19.99
-pt, STEM only +1.53 pt** — which is what native pretraining actually buys.
+Arabic-native pretraining, against a general-purpose 4B given 11,239 instruction records. The gap is
+uneven, and its ordering tracks how much Arabic cultural/linguistic knowledge a category needs —
+**Humanities +19.99 pt, STEM only +1.53 pt**. That ordering is reported as an observation only: the
+two models differ in scale, family, corpus and instruction tuning at once, and no ablation was run,
+so it cannot be attributed to native pretraining specifically.
 
 It does not contradict this project's thesis (in-domain banking), but it does close off any reading
 of these numbers as general Arabic competitiveness. **jais-6.7b was not measured** (gated repo, the
@@ -169,7 +171,7 @@ the GGUF.
 |---|---|
 | licence gate | ✅ `profile: commercial`, all sources Apache-2.0 / CC-BY-4.0 |
 | ppl gate | ⚠️ **ΔPPL ✅ both artifacts; AWQ fails the ArabicMMLU clause (−1.75 pt) and is withheld. GGUF's clause is unmeasured** |
-| eval report attached | ⚠️ **partial** — ArabicMMLU measured for this model and its base (§ Evaluation); no domain eval (12/300 items), no judges, no comparator |
+| eval report attached | ⚠️ **partial** — ArabicMMLU measured for this model, its base and one comparator (ALLaM-7B, which wins by 10.68 pt — § Evaluation); no domain eval (12/300 items), no judges, no 5–10× generalist |
 | cosign signature | ❌ not signed |
 
 **Still not releasable.** The signature is absent outright, and the eval condition is only half met:

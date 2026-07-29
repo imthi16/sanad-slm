@@ -38,14 +38,21 @@ whose evidence is untracked is not a claim.
 | `awq/awq-w4a16/PROVENANCE.yaml` | `9c7f179bb738f830d2e3671a6d7e5834f93c69a136f59bd537875ea80fe0bc6c` |
 | `comparator-allam/…/results_2026-07-29T11-10-20.827214.json` | `c9c08310442e3706e4aa421a978a715ca6237b43e857becb8c10c05b78a7ac86` |
 | `comparator-allam/ALLaM-7B-Instruct-preview/PROVENANCE.yaml` | `3421f7d7bed46f6f9554987b956e0f3e39bb24d2feafeb7c4b58ef7a7aa6c9d0` |
+| `train_metrics_b8ccaafc.json` | `1db671194bd7ff3094c6b9813c8b806a35bbd403abbaeed983b68ce6e9ba1865` |
 
 The two `log_samples` trees (52,291 per-sample records per model, 44 MB each) are **not** committed;
 they stay in `~/sanad-artifacts/`. The `results*.json` above hold every aggregate quoted in §5.
 
-Training metrics (loss curve, peak VRAM, FLOPs) come from MLflow run `b8ccaafc`
-(`hilarious-shad-242`), preserved in `mlflow.db` in the artifact archive. **Model weights are not
-in git** (prime directive 6) — the archive lives at `~/sanad-artifacts/` with all 8,223 files
-sha256-verified against the machine that produced them.
+**Training metrics** (peak VRAM, wall time, FLOPs, the full loss curve) come from MLflow run
+`b8ccaafc` (`hilarious-shad-242`, experiment `sanad-sft`). MLflow's backing store is a SQLite file
+that is *not* in git, so the run is exported into the last row of the table above —
+`train_metrics_b8ccaafc.json`, produced by `just export-metrics b8ccaafc` and force-added like the
+rest. Every §4 figure is read from that file. The export is byte-deterministic (sorted keys, no
+generation timestamp), so re-running it on the same run reproduces the same sha256; a report whose
+hash moved on every export could not be cited by hash at all.
+
+**Model weights are not in git** (prime directive 6) — the archive lives at `~/sanad-artifacts/`
+with all 8,223 files sha256-verified against the machine that produced them.
 
 ---
 
@@ -59,11 +66,11 @@ This matters more than the metrics, so it goes first.
 | Quantization preserves Arabic *perplexity* | **yes, both artifacts** | ΔPPL per language on a fixed held-out shard |
 | Quantization preserves Arabic *accuracy* | **NO for AWQ, unmeasured for GGUF** | AWQ drops **−1.75 pt** on ArabicMMLU vs bf16 — fails §5.3's 1.0 pt budget; AWQ is therefore **not shipped** (§4) |
 | CPU-only edge deployment works | **yes** | GGUF Q4_K_M runs under llama.cpp at the pinned commit |
-| "Matches a 5–10× larger model in-domain" | **NO** | domain eval holds 12 of 300 items; no comparator was run |
+| "Matches a 5–10× larger model in-domain" | **NO** | domain eval holds 12 of 300 items; and no 5–10× generalist was measured — the one comparator that ran, ALLaM-7B, is 1.75× |
 | ArabicMMLU, fine-tuned **and** base, same pinned command | **yes** | 0-shot, 14,455 items, harness `6d642546…`; §5 |
 | No catastrophic forgetting on ArabicMMLU | **yes** | −0.46 pt vs base, inside the §9.5 −1 pt gate *and* inside noise |
 | AraTrust / MadinahQA / ALRAGE | **NO** | not present in the pinned harness rev at all (§5) |
-| Any *relative* quality claim vs a larger model | **NO** | no comparator was measured |
+| Any *relative* quality claim vs a larger model | **yes — and it is a loss** | ALLaM-7B (1.75×, Arabic-native) beats this model by **10.68 pt** on ArabicMMLU; §5. No 5–10× generalist was measured |
 | Any judge-based (3C3H) claim | **NO** | no judges run, and no human-κ sample exists |
 
 **The training corpus is 11.4% machine-drafted with no human reviewer.** Those records carry
@@ -130,6 +137,14 @@ dropout 0, 3 epochs, effective batch 16, lr 2e-4 cosine, warmup 3%, NEFTune α=5
 | cost | **$0** (local) | $0 target | ✅ |
 | wall time | 44 min (0.733 h), 78 optimizer steps | — | |
 | total FLOPs | 1.035 × 10¹⁷ | — | |
+
+Every cell above, and both loss tables below, read from `train_metrics_b8ccaafc.json`
+(hashed in the traceability table): `peak_vram_gb: 15.594489344`, `train_runtime: 2636.3189` s of
+training loop (`train_hours: 0.7327`), `total_flos: 1.0353e17`. Wall clock for the whole process was
+3,315 s — the extra 11 minutes are model load, merge and save, which is why the *training* figure is
+the one quoted. Cost is `$0`: no compute was purchased. MLflow also logs a `cost_usd` metric, which
+is a cloud-equivalent estimate at `SANAD_GPU_USD_HR` (default $0.60/h) and is deliberately left out
+of the export so it can never be misread as a spend.
 
 ### Loss
 
@@ -305,11 +320,19 @@ Where the gap sits is more informative than its size:
 | Social Science | 66.55% | 58.42% | +8.13 |
 | **STEM** | **63.42%** | **61.89%** | **+1.53** |
 
-The gap is not uniform — it is **monotone in how much Arabic cultural and linguistic knowledge the
+The gap is not uniform — its ordering tracks **how much Arabic cultural and linguistic knowledge the
 category requires**. Humanities is a 20-point rout; STEM is +1.53 pt (~1.3σ, i.e. barely
-distinguishable). An Arabic-native pretraining corpus buys Arabic humanities, language and culture,
-and buys almost nothing on maths and science, where the underlying competence transfers across
-languages. That structure is a better finding than the headline delta, and it is exactly the kind of
+distinguishable).
+
+**That ordering is an observation, and this run cannot explain it.** ALLaM-7B and our model differ
+in parameter count, family, architecture, pretraining corpus and instruction tuning simultaneously,
+and these reports hold category accuracies and standard errors — no pretraining ablation, no
+cross-language-transfer measurement. So "an Arabic-native corpus buys humanities and maths transfers
+across languages" is a *hypothesis the table is consistent with*, not a result: a scale effect that
+bites hardest on knowledge-heavy subtasks predicts the same shape. Isolating the cause needs one
+architecture at one scale with the pretraining mixture varied, which was not run.
+
+The structure is still a better finding than the headline delta, and it is exactly the kind of
 observation a pooled single number would have destroyed — the same argument this project makes for
 per-language quantization gates, arriving independently on the benchmark side.
 
@@ -360,10 +383,12 @@ They are listed so nothing here is mistaken for more than it is.
    the pinned harness rev, so half of §15's benchmark list could not be run at all. Of the §9.5
    regression gate, the ArabicMMLU half is now **evaluated and passed**; the domain half
    (≥ base +5 pts) remains unevaluable — see item 3.
-2. **No comparator.** ALLaM-7B, jais-6.7b and a large generalist were never measured, so no
-   relative claim exists. Falcon-H1 has no exact repo id pinned in §15 and was dropped rather
-   than guessed. The headline "matches a 5–10× larger model" is therefore still unavailable —
-   ArabicMMLU parity with *its own base model* is a forgetting check, not a size comparison.
+2. **One comparator, and this model loses to it.** ALLaM-7B was measured and **wins by 10.68 pt**
+   (§5). jais-6.7b is a gated repo whose terms were never accepted, and no large generalist was
+   run; Falcon-H1 has no exact repo id pinned in §15 and was dropped rather than guessed. The
+   headline "matches a 5–10× larger model" is therefore still unavailable — the one comparator
+   that ran is **1.75×, not 5–10×**, and ArabicMMLU parity with *its own base model* is a
+   forgetting check, not a size comparison.
 3. **Domain eval is 12 of 300 items.** No in-domain score is available, which is precisely the
    axis the project's thesis rests on.
 4. **No judges, no human-κ.** 3C3H was not run, and the 50-item native-speaker validation does not

@@ -201,7 +201,7 @@ code-switching** — Latin `mobile banking app` remains intact inside an Arabic 
 minority case. Two defects are visible: the served model prefixes responses with stray
 `<tool_call>` control tokens, and the domain answer quoting USD for an AED product (§3).
 
-### 6.5 Standardized benchmarks — ArabicMMLU, no comparator
+### 6.5 Standardized benchmarks — ArabicMMLU, one comparator
 
 Both the fine-tuned model and its own base were scored with an identical command:
 lm-evaluation-harness at `6d642546f4688648fced259eb3302efd36ece5af` (v0.4.12),
@@ -218,8 +218,8 @@ RTX 4090. 14,455 items over 45 subtasks.
 
 **ALLaM-7B outperforms our model by 10.68 points, and we report it as the expected result.** It has
 1.75× the parameters and Arabic-native pretraining; we have a general-purpose 4B and 11,239
-instruction records. The informative part is that the gap is **monotone in how much Arabic
-cultural and linguistic knowledge a category demands**:
+instruction records. The informative part is that the gap is **not uniform across categories**, and
+its ordering tracks how much Arabic cultural and linguistic knowledge a category calls for:
 
 | category | ALLaM-7B | this work | gap |
 |---|---|---|---|
@@ -229,10 +229,21 @@ cultural and linguistic knowledge a category demands**:
 | Social Science | 66.55% | 58.42% | +8.13 |
 | STEM | 63.42% | 61.89% | **+1.53** |
 
-A 20-point rout on Humanities collapses to 1.53 pt (~1.3σ) on STEM. Native-corpus pretraining buys
-Arabic humanities, language and culture; it buys almost nothing on mathematics and science, where
-the competence evidently transfers across languages. A pooled single number would have hidden this
-structure — the same argument we make for per-language quantization gates in §6.2, arriving
+A 20-point rout on Humanities collapses to 1.53 pt (~1.3σ) on STEM.
+
+**We report this pattern and do not explain it.** The two checkpoints differ simultaneously in
+parameter count (7B vs 4B), model family, architecture, pretraining corpus and instruction tuning,
+and this experiment varies none of those independently; our reports contain category accuracies and
+standard errors and nothing else — no pretraining ablation, and no measurement of cross-language
+transfer. The ordering is therefore a fact about these two models on this benchmark. It is *not*
+evidence for what Arabic-native pretraining contributes, nor for the appealing story that
+mathematical competence transfers across languages while cultural knowledge does not; a scale
+effect that happens to be larger on knowledge-heavy subtasks would produce the same table. Deciding
+between those readings needs a controlled ablation — one architecture and scale, pretraining mixture
+varied — which we did not run, and which we flag in §9.1 as open.
+
+What the breakdown does establish is methodological: a pooled single number would have hidden the
+structure entirely — the same argument we make for per-language quantization gates in §6.2, arriving
 independently on the benchmark side.
 
 The delta clears the −1 pt catastrophic-forgetting threshold we set in advance, and it is **smaller
@@ -325,9 +336,14 @@ converted a bug into an inconvenience.
 
 ## 9. Limitations
 
-1. **One benchmark, no comparator** (§6.5). ArabicMMLU is measured for this model and its base;
-   `aratrust`, `madinahqa` and `alrage` are absent from the pinned harness rev, and no larger or
-   Arabic-native comparator was run — so no *relative* quality claim is available.
+1. **One benchmark, one comparator** (§6.5). ArabicMMLU is measured for this model, its base and
+   ALLaM-7B; `aratrust`, `madinahqa` and `alrage` are absent from the pinned harness rev. jais-6.7b
+   is gated and no 5–10× generalist was run, so the *relative* claim that exists is a **loss to a
+   1.75× Arabic-native model by 10.68 pt** — not the size comparison the thesis needs. The
+   comparison is also **fully confounded**: scale, family, architecture, pretraining corpus and
+   instruction tuning all differ at once, so the per-category gap ordering in §6.5 is describable
+   but not attributable. **No ablation isolating the pretraining mixture was run**, and none is
+   possible within this project's compute budget.
 2. **No in-domain score.** The domain set holds 12/300 items; the small-versus-large question this
    project was designed around is unanswered.
 3. **No judge results and no human κ** (§7).
@@ -353,8 +369,10 @@ Seed 3407 throughout. Pinned: base revision `cdbee75f17c01…`, llama.cpp `c0bc8
 lm-eval `6d642546…`. Lockfiles for both Python workspaces and the web app are committed. Data
 `MANIFEST.yaml` (sha256 `433b9514…`) records per-source counts, licences, provenance split and
 per-shard hashes; the training config hash `4a70cdc1…` is logged into the experiment tracker
-alongside the resolved target-module list. Perplexity-gate reports and the edge benchmark are
-committed with their sha256 in `RESULTS.md`. Code Apache-2.0; own data CC-BY-4.0.
+alongside the resolved target-module list. Perplexity-gate reports, the edge benchmark and a
+deterministic export of the training run's metrics and loss curve are committed with their sha256 in
+`RESULTS.md` — the experiment tracker's own database is not in git, so the export is what makes the
+VRAM and wall-time figures checkable. Code Apache-2.0; own data CC-BY-4.0.
 
 **Not reproducible from this repository:** model weights (excluded by policy) and the base model
 download, which requires network access.

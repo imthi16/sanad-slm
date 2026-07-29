@@ -14,7 +14,7 @@
   "lang.toggle": "العربية",
   "lang.toggleAria": "Switch language to Arabic",
   "hero.headline": "Arabic pays a tokenizer tax.",
-  "hero.sub": "The same bilingual sentence, priced by five tokenizers. The rule beneath each word marks where it was cut: Arabic words break into four or five pieces where English stays whole. More tokens is more latency, more cost, and less room in the context window.",
+  "hero.sub": "The same bilingual sentence, priced by five tokenizers. The rule beneath each word marks where it was cut: Arabic words are broken into pieces where English words stay whole — how many pieces is the tokenizer's choice, and the ledger below prices it. More tokens is more latency, more cost, and less room in the context window.",
   "hero.editSentence": "Set the specimen",
   "hero.canvasAlt": "Animated visualization: glyphs of a bilingual sentence regroup into token clusters per tokenizer, showing how English-first tokenizers shatter Arabic words.",
   "fertility.tokens": "tokens",

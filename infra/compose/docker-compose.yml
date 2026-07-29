@@ -71,6 +71,12 @@ services:
       SANAD_LLAMACPP_BASE_URL: http://llamacpp:8080/v1
       SANAD_REGISTRY_S3_ENDPOINT: http://minio:9000
       SANAD_SERVICE_TOKEN: ${SANAD_SERVICE_TOKEN:-dev-token}
+    # /v1/tokenize/fertility reads tokenizer.json files from SANAD_TOKENIZERS_DIR
+    # (default /models/tokenizers, which the Helm chart's initContainer mirrors from MinIO). In
+    # compose there is no initContainer, so `just sync-tokenizers` output is bound in directly —
+    # without it the Specimen hero 503s and shows no measurements at all.
+    volumes:
+      - ../../ml/out/tokenizers:/models/tokenizers:ro
     ports: ["8000:8000"]
     depends_on:
       postgres: { condition: service_healthy }

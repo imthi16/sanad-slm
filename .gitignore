@@ -29,6 +29,8 @@ apps/web/dev-dist/
 apps/web/playwright-report/
 apps/web/test-results/
 apps/web/.vite/
+# scratch PNGs from `just capture-specimen`; the recipe removes them, a crashed run does not
+apps/web/.capture-frames/
 
 # ── ml artifacts (never commit weights or raw data) ────
 ml/out/
