@@ -26,10 +26,20 @@ NUM_FEWSHOT=0
 # 24 GB card after weights, so the engine core refuses to start before a single token is scored.
 # That killed both P4 evals on 2026-07-28 — identical `Engine core initialization failed` for
 # fine-tuned and base, which reads like a broken environment and is really just a default.
-# 8192 matches the serving envelope in CLAUDE.md §6.1 and is ~8× the longest ArabicMMLU 0-shot
-# prompt. It MUST stay identical across every model in the §5.2 matrix or the numbers aren't
-# comparable — that is why it lives here as a pin and not in the caller.
-MAX_MODEL_LEN="${SANAD_LM_EVAL_MAX_LEN:-8192}"
+# 8192 matches the serving envelope in CLAUDE.md §6.1 and is ~6.8× the longest ArabicMMLU 0-shot
+# prompt (measured: 3,615 chars ≈ 1,205 tokens over all 14,455 items).
+#
+# It is a CEILING, not a fixed value: the effective length is min(this, the model's own
+# max_position_embeddings), derived below. ALLaM-7B caps at 4096 and vLLM *refuses to start* when
+# asked for more, so a single hard-pinned 8192 cannot evaluate the §5.2 comparator matrix at all.
+# Clamping is safe for comparability here precisely because no prompt comes close to either bound —
+# nothing is truncated at 4096 or at 8192, so the scores remain like-for-like. The check below
+# enforces that reasoning rather than trusting it, and the effective value is stamped into
+# PROVENANCE.yaml so a report always states what it actually ran with.
+MAX_MODEL_LEN_CEILING="${SANAD_LM_EVAL_MAX_LEN:-8192}"
+# Longest prompt the task set can produce, in tokens, with headroom. If the clamp ever lands below
+# this, the run would silently truncate prompts and the scores would not be comparable — abort instead.
+MIN_SAFE_MODEL_LEN="${SANAD_LM_EVAL_MIN_SAFE_LEN:-2048}"
 GPU_MEM_UTIL="${SANAD_LM_EVAL_GPU_UTIL:-0.85}"
 
 # Appended verbatim to --model_args, for per-model requirements that are NOT part of the
@@ -95,6 +105,34 @@ if "$EVAL_VENV/bin/lm_eval" validate --tasks "$TASKS" 2>&1 | grep -q "not found"
     exit 1
 fi
 
+# Derive the effective context length: min(ceiling, model's own max_position_embeddings). Done here,
+# before the GPU is touched, because vLLM's failure mode for asking too much is a pydantic
+# ValidationError 20 s in rather than a clamp.
+echo "→ deriving max_model_len (ceiling ${MAX_MODEL_LEN_CEILING})" >&2
+MAX_MODEL_LEN=$("$EVAL_VENV/bin/python" - "$MODEL" "$MAX_MODEL_LEN_CEILING" <<'PY'
+import sys
+ceiling = int(sys.argv[2])
+try:
+    from transformers import AutoConfig
+    cfg = AutoConfig.from_pretrained(sys.argv[1], trust_remote_code=True)
+    mpe = getattr(cfg, "max_position_embeddings", None) or getattr(cfg, "n_positions", None)
+    print(min(ceiling, int(mpe)) if mpe else ceiling)
+except Exception as exc:  # noqa: BLE001 — any failure falls back to the ceiling, loudly
+    print(f"could not read config ({type(exc).__name__}), using ceiling", file=sys.stderr)
+    print(ceiling)
+PY
+)
+if [[ ! "$MAX_MODEL_LEN" =~ ^[0-9]+$ ]]; then
+    echo "✗ could not derive max_model_len (got '$MAX_MODEL_LEN')" >&2
+    exit 1
+fi
+if (( MAX_MODEL_LEN < MIN_SAFE_MODEL_LEN )); then
+    echo "✗ effective max_model_len ${MAX_MODEL_LEN} < ${MIN_SAFE_MODEL_LEN} — prompts would be" >&2
+    echo "  truncated and the scores would not be comparable across the matrix. Refusing." >&2
+    exit 1
+fi
+echo "→ max_model_len: ${MAX_MODEL_LEN} (ceiling ${MAX_MODEL_LEN_CEILING})" >&2
+
 mkdir -p "$OUT"
 MODEL_ARGS="pretrained=${MODEL},dtype=bfloat16,gpu_memory_utilization=${GPU_MEM_UTIL},max_model_len=${MAX_MODEL_LEN}"
 [[ -n "$EXTRA_MODEL_ARGS" ]] && MODEL_ARGS="${MODEL_ARGS},${EXTRA_MODEL_ARGS}"
@@ -114,7 +152,8 @@ echo "→ model_args: $MODEL_ARGS" >&2
     echo "lm_eval_rev: $LM_EVAL_REV"
     echo "tasks: $TASKS"
     echo "num_fewshot: $NUM_FEWSHOT"
-    echo "max_model_len: $MAX_MODEL_LEN"
+    echo "max_model_len: $MAX_MODEL_LEN            # effective = min(ceiling, model max_position_embeddings)"
+    echo "max_model_len_ceiling: $MAX_MODEL_LEN_CEILING"
     echo "gpu_memory_utilization: $GPU_MEM_UTIL"
     echo "extra_model_args: ${EXTRA_MODEL_ARGS:-none}"
     echo "seed: 3407"
