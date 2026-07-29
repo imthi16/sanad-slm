@@ -1,0 +1,47 @@
+[
+  {
+    "lang": "ar",
+    "prompt": "ما هو الحد الأدنى للرصيد المطلوب لفتح حساب توفير؟",
+    "response": "<tool_call>\n\n<tool_call>\nعادةً ما يبدأ الحد الأدنى للرصيد لفتح حساب توفير بـ 100 دولار أمريكي.",
+    "seconds": 6.8,
+    "usage": {
+      "completion_tokens": 32,
+      "prompt_tokens": 27,
+      "total_tokens": 59,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "tok_s": 4.72
+  },
+  {
+    "lang": "en",
+    "prompt": "What documents are required to open a corporate bank account in the UAE?",
+    "response": "<tool_call>\n\n</tool_call>\n\nTo open a corporate bank account in the UAE, the following documents are typically required:\r\n\r\n1. A valid company registration certificate.\r\n2. A copy of the company's constitution or articles of association.\r\n3. A copy of the company's shareholders' or directors' passports or national ID cards.\r\n4. A copy of the company's business license.\r\n5. A copy of the company's tax ID number.\r\n6. A copy of the company's director's or shareholder's Emirates ID or passport.\r\n7. A completed bank account opening form.\r\n8. Proof of address for the company's registered office.\r\n9. A copy of the company's bank statement or financial statements.\r\n10. A copy of the company's bank account opening application.\r\n11. A copy of the company",
+    "seconds": 34.2,
+    "usage": {
+      "completion_tokens": 160,
+      "prompt_tokens": 22,
+      "total_tokens": 182,
+      "prompt_tokens_details": {
+        "cached_tokens": 3
+      }
+    },
+    "tok_s": 4.68
+  },
+  {
+    "lang": "mixed",
+    "prompt": "هل يمكنني استخدام الـ mobile banking app لتحويل الأموال دولياً؟",
+    "response": "<tool_call>\n\n<tool_call>\n\nنعم، يمكن استخدام الـ mobile banking app لتحويل الأموال دولياً.",
+    "seconds": 11.3,
+    "usage": {
+      "completion_tokens": 23,
+      "prompt_tokens": 26,
+      "total_tokens": 49,
+      "prompt_tokens_details": {
+        "cached_tokens": 3
+      }
+    },
+    "tok_s": 2.04
+  }
+]

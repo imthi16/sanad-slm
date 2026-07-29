@@ -52,6 +52,59 @@ def config_sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+#: PEFT understands `target_modules="all-linear"`, but Unsloth's *text* path never lets the string
+#: reach PEFT: `llama.py` does `list(target_modules)` and `for module in target_modules`, so the
+#: shorthand arrives as its own characters and injection dies with
+#: `Target modules {'n','-','r','a','l','i','e'} not found in the base model`. (Unsloth handles the
+#: shorthand only in `vision.py`, which `FastLanguageModel` does not use.) So expand it here.
+ALL_LINEAR = "all-linear"
+
+#: Excluded from the expansion exactly as PEFT's own shorthand excludes them. Adapting the
+#: embedding or the output head changes the tokenizer contract rather than task behaviour, and on
+#: Qwen3 the two are tied — adapting one silently perturbs the other.
+_NEVER_ADAPT = frozenset({"embed_tokens", "lm_head"})
+
+
+def _is_linear(module: object) -> bool:
+    """Duck-typed so this file stays importable (and testable) without torch installed.
+
+    Matching the class-name across the MRO catches `nn.Linear`, its subclasses, and
+    bitsandbytes' `Linear4bit`/`Linear8bitLt` — which is the form every layer takes under
+    `load_in_4bit: true`.
+    """
+    return any("Linear" in klass.__name__ for klass in type(module).__mro__)
+
+
+def resolve_target_modules(spec: Any, model: Any) -> list[str]:
+    """Turn the config's `target_modules` into the explicit list Unsloth requires.
+
+    A list passes through untouched. `all-linear` is expanded by introspecting the loaded model,
+    so it stays correct if the base architecture changes, and the resolved list is logged to
+    MLflow — an explicit record of which modules actually received adapters beats a shorthand
+    nobody can reconstruct from the run later (prime directive 4).
+    """
+    if not isinstance(spec, str):
+        return [str(m) for m in spec]
+    if spec != ALL_LINEAR:
+        raise SystemExit(
+            f"target_modules {spec!r} is a bare string. Unsloth's text path iterates strings "
+            f"character-by-character, so only the {ALL_LINEAR!r} shorthand (expanded here) or an "
+            "explicit list of module names will work."
+        )
+
+    found = {
+        name.rsplit(".", 1)[-1]
+        for name, module in model.named_modules()
+        if _is_linear(module) and name.rsplit(".", 1)[-1] not in _NEVER_ADAPT
+    }
+    if not found:
+        raise SystemExit(
+            f"{ALL_LINEAR!r} matched no linear modules in the loaded model — refusing to train an "
+            "adapter that would touch nothing."
+        )
+    return sorted(found)
+
+
 def peak_vram_gb() -> float:
     import torch
 
@@ -70,6 +123,15 @@ def main() -> None:
 
     cfg = load_config(args.config)
     lora, tr, out = cfg["lora"], cfg["train"], cfg["outputs"]
+
+    # Unsloth FIRST, before trl/transformers/peft — it patches them at import time by rebinding
+    # `trl.SFTTrainer` and `trl.SFTConfig` to its own subclasses. A name bound from trl *before*
+    # that keeps pointing at the unpatched class, so the run drives an Unsloth-patched model and
+    # tokenizer through stock TRL. That mismatch is what raised
+    # `eos_token ('<EOS_TOKEN>') is not found in the vocabulary` on 2026-07-28: Unsloth's trainer
+    # resolves that sentinel, stock TRL validates it literally and rejects it (ADR-0007).
+    # Unsloth prints a UserWarning about this; it is load-bearing, not cosmetic.
+    import unsloth  # noqa: F401  # isort: skip  — import for side effects, order matters
 
     import mlflow
     import torch
@@ -104,13 +166,17 @@ def main() -> None:
             load_in_4bit=cfg["load_in_4bit"],  # NF4 via bitsandbytes
             dtype=None,  # auto bf16 on Ampere+
         )
+        target_modules = resolve_target_modules(lora["target_modules"], model)
+        log.info("target_modules resolved", spec=lora["target_modules"], modules=target_modules)
+        mlflow.log_param("target_modules", ",".join(target_modules))
+
         model = FastLanguageModel.get_peft_model(
             model,
             r=lora["r"],
             lora_alpha=lora["alpha"],
             lora_dropout=lora["dropout"],
             use_dora=lora["use_dora"],
-            target_modules=lora["target_modules"],
+            target_modules=target_modules,
             random_state=cfg["seed"],
         )
 

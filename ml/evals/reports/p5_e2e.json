@@ -1,0 +1,49 @@
+{
+  "platform": "x86-local",
+  "gpu": false,
+  "llamacpp_models": "{\"models\":[{\"name\":\"sanad-bank-gguf\",\"model\":\"sanad-bank-gguf\",\"modified_at\":\"\",\"size\":\"\",\"digest\":\"\",\"type\":\"model\",\"description\":\"\",\"tags\":[\"\"],\"capabilities\":[\"completion\"],\"parameters\":\"\",\"details\":{\"parent_model\":\"\",\"format\":\"gguf\",\"family\":\"\",\"families\":[\"\"],\"parameter_size\":\"\",\"quantization_l",
+  "GET /healthz": {
+    "status": 200,
+    "body": "{\"status\":\"ok\"}"
+  },
+  "GET /readyz": {
+    "status": 503,
+    "body": "{\"ready\":false,\"checks\":{\"database\":false,\"redis\":false,\"upstream\":true}}"
+  },
+  "GET /v1/models": {
+    "status": 200,
+    "body": "{\"object\":\"list\",\"data\":[{\"id\":\"sanad-bank-awq\",\"object\":\"model\",\"owned_by\":\"sanad\",\"x_sanad\":{\"upstream_kind\":\"vllm\",\"healthy\":false,\"quant_format\":\"awq-w4a16\",\"license\":\"Apache-2.0\",\"sovereign\":true,\"mode\":\"edge\"}},{\"id\":\"sanad-bank-gguf\",\"object\":\"model\",\"owned_by\":\"sanad\",\"x_sanad\":{\"upstream_kind\":\"llamacpp\",\"healthy\":true,\"quant_format\":\"gguf-q4_k_m\",\"license\":\"Apache-2.0\",\"sovereign\":true,\"mode\":\"edge\"}}]}"
+  },
+  "chat_nonstream": {
+    "status": 200,
+    "content": "</tool_call>\n\n<tool_call>\n\nتتضمن أنواع الحسابات المصرفية المتاحة العديد من الخيارات، مثل الحسابات البنكية للأفراد، والحسابات التجارية، والحسابات الاستثمارية، والحسابات للإيداع المضمون، بالإضافة إلى الحسابات المصرفية الإلكترونية.",
+    "x_sanad": {
+      "upstream": "llamacpp",
+      "model_alias": "sanad-bank-gguf",
+      "sovereign": true,
+      "ttft_ms": 13907.4,
+      "tokens_per_second": 4.67,
+      "prompt_tokens": 23,
+      "completion_tokens": 65,
+      "detected_lang": "ar"
+    }
+  },
+  "chat_stream": {
+    "chunks": 57,
+    "text": "</tool_call>\n\n<tool_call>\n\nالحد الأدنى للرصيد هو المبلغ الأدنى الذي يجب أن يكون في حسابك في البنك. إذا تجاوز الرصيد الحد الأدنى، يُعتبر الحساب في حالة \"الرصيد الكامل\".",
+    "x_sanad": {
+      "upstream": "llamacpp",
+      "model_alias": "sanad-bank-gguf",
+      "sovereign": true,
+      "ttft_ms": 751.7,
+      "tokens_per_second": 5.27,
+      "prompt_tokens": null,
+      "completion_tokens": 54,
+      "detected_lang": "ar"
+    }
+  },
+  "fertility": {
+    "status": 200,
+    "body": "{\"text_words\":9,\"detected_lang\":\"ar\",\"tokenizers\":{\"qwen3\":{\"tokens\":22,\"tokens_per_word\":2.4444,\"segments\":[{\"id\":31382,\"start\":0,\"end\":2,\"text\":\"ال\",\"script\":\"ar\"},{\"id\":124062,\"start\":2,\"end\":4,\"text\":\"حد\",\"script\":\"ar\"},{\"id\":123877,\"start\":4,\"end\":8,\"text\":\" الأ\",\"script\":\"ar\"},{\"id\":125837,\"start\":8,\"end\":10,\"text\":\"دن\",\"script\":\"ar\"},{\"id\":55057,\"start\":10,\"end\":11,\"text\":\"ى\",\"script\":\"ar\"},{\"id\":125006,\"start\":11,\"end\":14,\"text\":\" لل\",\"script\":\"ar\"},{\"id\":127651,\"start\":14,\"end\":16,\"text\":\"رص\",\"script\":\"ar\"},{\"id\":123980,\"start\":16,\"end\":18,\"text\":\"يد\",\"script\":\"ar\"},{\"id\":77273,\"start"
+  }
+}

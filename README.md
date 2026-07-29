@@ -32,12 +32,25 @@ That is the tax this project measures, and the rule under the sentence is where 
 
 ## Status
 
-> **As of 2026-07-25 — the platform is built and gated; the model pipeline has not run.**
+> **As of 2026-07-29 — P0–P5 have run. The model exists, is measured, and is benchmarked.**
 >
-> Scaffold, FastAPI gateway, React dashboard, CI and every quality gate are green
-> (`just check`, 85 tests across three stacks). No data ingested, no model trained, no eval
-> report produced. Every results table below is therefore **deliberately empty** — see
-> [the honest-claims policy](#results). Next milestone: **P1, data.**
+> A ~4B bilingual model was trained (**44 min, peak VRAM 15.59 GB, $0**), quantized two ways, and now
+> answers Arabic and English banking questions **on a CPU-only laptop at 6.19 tok/s** through the real
+> serving path. Both artifacts passed the per-language perplexity gate (**Arabic ΔPPL +1.44% AWQ,
+> +2.39% GGUF**) — but the AWQ artifact then **lost 1.75 pt of ArabicMMLU accuracy and was withheld**.
+> Perplexity did not predict that loss, which is the most useful thing this project measured.
+> Shipping is **bf16 + GGUF Q4_K_M**. Full detail, every figure traced to a hashed report:
+> **[`RESULTS.md`](./RESULTS.md)** · **[model card](./docs/model-cards/sanad-qwen3-4b-bank-v0.1.0.md)**
+>
+> **The headline claim below is NOT yet supported.** ArabicMMLU is measured for the fine-tuned model
+> and its base (59.33% vs 59.79%, **−0.46 pt** — no catastrophic forgetting), and the one comparator
+> that ran, **ALLaM-7B, beats this model by 10.68 pt** (Arabic-native, 1.75× the size — expected, and
+> reported rather than omitted). No 5–10× generalist was measured, so no small-versus-large claim
+> exists; the domain eval holds 12 of 300 items; and no judge or human-κ evaluation exists. The
+> remaining empty cells stay empty on purpose — see
+> [the honest-claims policy](#results). The model also has two known defects (stray `<tool_call>`
+> tokens, and an unvalidated domain answer that quoted USD for an AED product), both recorded
+> rather than cropped.
 
 ## The claim
 
@@ -50,6 +63,12 @@ That is the tax this project measures, and the rule under the sentence is where 
 Not a slogan — a shipped, measured artifact. Every number quoted anywhere in this repository
 traces to a report file in [`ml/evals/reports/`](./ml/evals/reports/) by hash, and judge-based
 claims are invalid without a human-validation κ attached.
+
+**Which half of that claim is currently proven:** the efficiency and sovereignty half. Fine-tuned
+for $0 on one 24 GB GPU ✅ · quantized to AWQ and GGUF with Arabic quality gated per-language ✅ ·
+running air-gapped on commodity CPU with no GPU and no Docker ✅. The **"match a 5–10× larger
+model"** half is unproven and is not claimed anywhere as fact — it needs P4 plus a domain eval that
+does not yet exist.
 
 [`CLAUDE.md`](./CLAUDE.md) is the single source of truth — architecture, prime directives, pins,
 gates, and the phased roadmap. When this README and CLAUDE.md disagree, CLAUDE.md wins.
@@ -78,10 +97,15 @@ Details in [ADR-0005](./docs/adr/0005-specimen-hero-rubrication-design.md).
 | [![الرئيسية بالعربية: العنوان بخط عريف رقعة، والجملة تحتها خط مقطَّع بعدد الرموز](docs/screenshots/home-ar.png)](docs/screenshots/home-ar.png) | [![مختبر الخصوبة الرمزية: جدول الرموز لكل كلمة مع مقاطع كل مُرمِّز](docs/screenshots/tokenizer-lab.png)](docs/screenshots/tokenizer-lab.png) |
 
 > **About these captures.** The layout, type and palette are live. The token figures come from
-> the repository's [e2e fixture](./apps/web/e2e/fixtures/fertility.json), not from real
-> tokenizers — the pipeline has not run, so no `tokenizer.json` files exist locally yet. The
-> fixture's *ordering* matches each tokenizer's known Arabic fertility; its digits are not
-> measurements and are never quoted as such.
+> the repository's [e2e fixture](./apps/web/e2e/fixtures/fertility.json), **not from real
+> tokenizers.** `just sync-tokenizers` has now fetched **3 of the 5** (Qwen3, Falcon-H1, and ALLaM
+> converted from sentencepiece — each with its source commit recorded in
+> `out/tokenizers/tokenizers.manifest.json`); jais and Llama-3.2 are gated and need a human to accept
+> terms. But `just fertility` still cannot run: the **three frozen corpora it measures over do not
+> exist yet** (`evals/fertility/corpora/` holds only its README). Until they are collected under the
+> licence constraints documented there, the hero's digits remain fixture data. The fixture's
+> *ordering* matches each tokenizer's known Arabic fertility; its digits are not measurements and are
+> never quoted as such.
 
 Pages: `/` Specimen + results ledger · `/chat` bilingual streaming chat · `/evals` benchmark and
 judge dashboard · `/tokenizer` Fertility Lab · `/edge` live edge telemetry · `/registry` signed
@@ -327,19 +351,33 @@ persisted** by default.
 ## Results
 
 > **Honest-claims policy** (prime directive 5). This table populates only from hashed report files
-> in `ml/evals/reports/`. The pipeline is built and gated; the runs land at P2–P4. **No number
-> appears here before its report exists** — which is why every cell below is an em-dash rather
-> than a plausible placeholder.
+> in `ml/evals/reports/`, listed with their sha256 in [`RESULTS.md`](./RESULTS.md#traceability-prime-directive-6).
+> **No number appears here before its report exists** — which is why the remaining cells are
+> em-dashes rather than plausible placeholders. ArabicMMLU traces to
+> `results_2026-07-29T09-41-07…json` (`1e7301d1…`, fine-tuned) and
+> `results_2026-07-29T09-49-43…json` (`c758c32f…`, base); the edge figures to
+> `edge_bench_x86-local.txt` (`3fa61ce6…`); training cost and VRAM to MLflow run `b8ccaafc`.
+>
+> Read the deltas carefully: **−0.46 pt on ArabicMMLU is a forgetting check against this model's own
+> base**, and it is smaller than the 0.56 pt standard error of the difference — not an improvement.
+> And the one comparator that was measured, **ALLaM-7B, beats this model by 10.68 pt**: it is
+> Arabic-native and 1.75× the size, so that is the expected result and it is reported rather than
+> omitted. No 5–10× generalist was run, so that headline claim remains unavailable.
 
 | Metric | Base Qwen3-4B | Sanad (fine-tuned) | ALLaM-7B | jais-6.7b | Falcon-H1-7B\* | Lands at |
 |---|---|---|---|---|---|---|
-| Domain eval (300 items) | — | — | — | — | — | P4 |
-| ArabicMMLU | — | — | — | — | — | P4 |
-| 3C3H (human-anchored) | — | — | — | — | — | P4 |
-| Edge tok/s @ watts (`x86-local`) | — | — | — | — | — | P3 |
-| Training cost | — | — | — | — | — | P2 · < $50 gate |
+| Domain eval (300 items) | — | — | — | — | — | blocked · 12/300 items authored |
+| ArabicMMLU (0-shot, 14,455 items) | **59.79%** ±0.40 | **59.33%** ±0.40 | **70.01%** ±0.37 | — (gated repo) | — | ✅ measured 2026-07-29 |
+| ArabicMMLU — AWQ W4A16 (**withheld**) | 59.79% ±0.40 | 57.58% ±0.40 | — | — | — | ❌ −1.75 pt vs bf16, fails its gate |
+| 3C3H (human-anchored) | — | — | — | — | — | blocked · needs a native-speaker κ sample |
+| Edge gen tok/s, CPU-only (`x86-local`) | n/a | **6.19** (`llama-bench -t 6 -n 32`); ~4.7 end-to-end via `llama-server` | — | — | — | ✅ measured (Q4_K_M) |
+| Edge watts | — | — | — | — | — | Intel RAPL unreadable without sudo |
+| Training cost | n/a | **$0** (0.73 h local, peak VRAM 15.59 GB) | — | — | — | ✅ measured · < $50 gate |
 
 \* Falcon-H1 is a benchmark comparator only (Falcon-LLM License — never in the shipping path).
+Comparator columns are empty throughout because none of those models was run. "n/a" marks cells where
+the metric does not apply to the base model — the edge artifact and the training cost are properties
+of *this* fine-tune, not of an upstream checkpoint.
 
 The release gate is honest by construction: the fine-tuned model must beat base by **≥ +5 pts**
 in-domain while staying within **−1 pt** on ArabicMMLU (no catastrophic forgetting), or the build
@@ -369,13 +407,13 @@ Phases are PR milestones, each with acceptance criteria in [CLAUDE.md §13](./CL
 | Phase | Scope | Status |
 |---|---|---|
 | **P0 · Skeleton** | monorepo, justfile, CI, compose stack, RTL app shell | **done** — `just check` green, RTL+LTR snapshots green |
-| **P1 · Data** | CIDAR ingest, 300 banking pairs, dedup/langid, manifest gate | **next** — tooling ready, nothing ingested |
-| **P2 · Train + merge** | QLoRA on the local RTX 4090, MLflow, $0, < 16 GB VRAM | not started |
-| **P3 · Quantize + serve** | AWQ + GGUF+imatrix, ppl-gate, vLLM chart, CPU edge profile | not started |
-| **P4 · Eval harness** | full matrix, domain eval frozen, judges + human validation | not started |
-| **P5 · Full app** | chat SSE end to end, live Specimen, all pages and scenes | partial — scenes and API built, wiring at P5 |
-| **P6 · Sovereign hardening** | egress-zero 24 h, cosign verify path, checklist green | not started |
-| **P7 · Position + publish** | README numbers, model card, workshop paper draft | not started |
+| **P1 · Data** | CIDAR ingest, 300 banking pairs, dedup/langid, manifest gate | **done** — 11,239 records (CIDAR 9,962 + 1,277 own), gate green, provenance split published. Caveat: the banking pairs are **synthetic and unreviewed** |
+| **P2 · Train + merge** | QLoRA on the local RTX 4090, MLflow, $0, < 16 GB VRAM | **done** — 0.73 h, peak VRAM **15.59 GB**, **$0**, 78 optimizer steps; merged-bf16 + manifest. Acceptance criteria met |
+| **P3 · Quantize + serve** | AWQ + GGUF+imatrix, ppl-gate, vLLM chart, CPU edge profile | **partial** — both artifacts built and ΔPPL-gated per language; **AWQ withheld** after losing 1.75 pt of ArabicMMLU (its accuracy clause), so shipping is bf16 + GGUF. Edge bench recorded (`x86-local`); the vLLM-on-k3s half is unexercised |
+| **P4 · Eval harness** | full matrix, domain eval frozen, judges + human validation | **partial** — ArabicMMLU measured on fine-tuned + base, forgetting gate passed; no comparator, no domain eval (12/300 items), no judges, no human κ |
+| **P5 · Full app** | chat SSE end to end, live Specimen, all pages and scenes | **partial** — streaming **and** non-streaming chat verified end to end against our own GGUF on CPU (`p5_e2e.json`), `x_sanad` metadata intact; `/readyz` red without Postgres/Redis; responses still carry the `<tool_call>` defect |
+| **P6 · Sovereign hardening** | egress-zero 24 h, cosign verify path, checklist green | not started — 3 checklist items need a live cluster |
+| **P7 · Position + publish** | README numbers, model card, workshop paper draft | **partial** — model card and `docs/paper/draft.md` written from measured results; no signed release, no blog post |
 
 <details>
 <summary><b>Monorepo map</b></summary>

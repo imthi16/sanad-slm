@@ -1,0 +1,23 @@
+{
+  "model": "out/sanad-Q4_K_M.gguf",
+  "kind": "gguf",
+  "threshold": 0.05,
+  "baseline": "/home/yavar/sanad-slm/ml/out/sanad-f16.gguf",
+  "ppl": {
+    "pooled": {
+      "base": 6.1415,
+      "quant": 6.2872,
+      "delta": 0.023723845965969326
+    },
+    "ar": {
+      "base": 6.2276,
+      "quant": 6.3765,
+      "delta": 0.023909692337337057
+    },
+    "en": {
+      "base": 6.8939,
+      "quant": 6.8369,
+      "delta": -0.008268179114869722
+    }
+  }
+}

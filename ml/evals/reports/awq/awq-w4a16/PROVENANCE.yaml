@@ -1,0 +1,10 @@
+model: ml/out/awq-w4a16
+lm_eval_rev: 6d642546f4688648fced259eb3302efd36ece5af
+tasks: arabicmmlu
+num_fewshot: 0
+max_model_len: 8192
+gpu_memory_utilization: 0.85
+extra_model_args: none
+seed: 3407
+eval_venv: /home/yavar/sanad-slm/ml/.venv-eval
+data_manifest_sha256: 139e92e242548d009baeabc697f61ffb6c83b8859c793a0b73b2086c64503eec

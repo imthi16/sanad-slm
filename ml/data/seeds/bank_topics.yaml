@@ -1,0 +1,442 @@
+# Grounding seeds for synthetic banking/compliance SFT drafts (§5.1).
+#
+# HONESTY CONTRACT — read before using or extending this file:
+#   * `citation` names the GOVERNING INSTRUMENT at document level. It is a pointer, not an
+#     attestation. Article-level precision is deliberately absent: a fabricated article
+#     number is a fabricated regulatory reference, and we do not ship those.
+#   * Every pair generated from these seeds is emitted as `provenance: synthetic` with NO
+#     reviewer. Promotion to `native` requires a human to (a) verify the citation down to the
+#     article and (b) confirm the answer text. Until then the MANIFEST reports them as
+#     synthetic and every eval report prints that split (prime directive 3).
+#   * `grounding` is authored English prose stating settled, general banking practice. The
+#     generator paraphrases it into Q&A; it does not invent new obligations. Arabic pairs are
+#     written natively in MSA by the generator from this grounding, not machine-translated
+#     from an English answer.
+#
+# Angles produce substantively different questions from one grounding, so variants are not
+# near-duplicates that dedup.py would simply discard.
+
+angles:
+  - definition        # what is X
+  - threshold         # limits, timeframes, amounts
+  - procedure         # step-by-step obligation
+  - exception         # when X does not apply
+  - customer_facing   # explain to a retail customer in plain language
+  - escalation        # what to do when something is wrong/suspicious
+  - recordkeeping     # what must be retained and for how long
+
+topics:
+  # ── banking.compliance · AML/CFT ────────────────────────────────────────────
+  - id: kyc-onboarding
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT; Cabinet Decision No. (10) of 2019"
+    grounding: >
+      A bank must identify the customer and verify that identity using reliable, independent
+      source documents before establishing a business relationship or opening an account.
+      For natural persons this normally means an identity document and proof of address; for
+      legal persons it extends to constitutional documents and evidence of the ownership and
+      control structure.
+
+  - id: beneficial-ownership
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT; Cabinet Decision No. (58) of 2020"
+    grounding: >
+      For a corporate customer the bank must look through the legal entity and identify the
+      ultimate beneficial owner — the natural person who ultimately owns or controls the
+      customer. Where no natural person is identified through ownership, control by other
+      means is considered, and failing that the senior managing official is recorded.
+
+  - id: enhanced-due-diligence
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT; Cabinet Decision No. (10) of 2019"
+    grounding: >
+      Enhanced due diligence applies to higher-risk relationships: politically exposed
+      persons, customers from higher-risk jurisdictions, complex or unusually large
+      transactions, and relationships without an apparent economic purpose. It adds senior
+      management approval, stronger source-of-funds and source-of-wealth evidence, and more
+      frequent ongoing monitoring.
+
+  - id: politically-exposed-persons
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT; Cabinet Decision No. (10) of 2019"
+    grounding: >
+      A politically exposed person is an individual entrusted with a prominent public
+      function, together with their family members and close associates. Such relationships
+      require senior management approval to open or continue, establishment of source of
+      wealth and source of funds, and enhanced ongoing monitoring.
+
+  - id: suspicious-transaction-reporting
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT — reporting to the UAE Financial Intelligence Unit"
+    grounding: >
+      Where a bank suspects, or has reasonable grounds to suspect, that funds are the
+      proceeds of crime or related to terrorist financing, it must file a report with the
+      Financial Intelligence Unit without delay. The customer must not be informed that a
+      report has been or will be filed.
+
+  - id: tipping-off
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT"
+    grounding: >
+      Disclosing to a customer or a third party that a suspicious transaction report has been
+      filed, or that an investigation is underway, is prohibited. This restriction binds the
+      institution and its staff, and applies regardless of the channel of disclosure.
+
+  - id: sanctions-screening
+    domain: banking.compliance
+    citation: "UAE Cabinet Decision No. (74) of 2020 on the UAE Local Terrorist List and UNSC resolutions"
+    grounding: >
+      Banks must screen customers and transactions against applicable sanctions lists,
+      including the UAE Local Terrorist List and United Nations Security Council consolidated
+      lists. A confirmed match requires immediate freezing of funds without prior notice and
+      notification to the competent authority.
+
+  - id: ongoing-monitoring
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT; Cabinet Decision No. (10) of 2019"
+    grounding: >
+      Customer due diligence is not a one-off event at onboarding. The bank must monitor the
+      relationship on an ongoing basis to ensure transactions remain consistent with its
+      knowledge of the customer, their business and risk profile, and must keep the
+      underlying customer information current.
+
+  - id: record-retention-aml
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT"
+    grounding: >
+      Records of customer due diligence, account files, business correspondence and
+      transaction records must be retained for at least five years following the end of the
+      business relationship or the date of the occasional transaction, and must be made
+      available to competent authorities on request.
+
+  - id: correspondent-banking
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT; Cabinet Decision No. (10) of 2019"
+    grounding: >
+      Before entering a correspondent banking relationship the bank must gather sufficient
+      information on the respondent institution, assess its AML controls, obtain senior
+      management approval, and document each institution's respective responsibilities.
+      Relationships with shell banks are prohibited.
+
+  - id: wire-transfer-information
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT; CBUAE payment system regulations"
+    grounding: >
+      Cross-border wire transfers must carry required and accurate originator and beneficiary
+      information throughout the payment chain. Transfers with missing or incomplete
+      information must be subject to the institution's risk-based policy, which may include
+      rejection, suspension, or requesting the missing details.
+
+  - id: cash-transaction-handling
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT; CBUAE AML/CFT guidance for licensed financial institutions"
+    grounding: >
+      Large or structured cash activity is a recognised money-laundering indicator. Banks
+      apply thresholds and pattern detection to cash deposits and withdrawals, seek evidence
+      of source of funds where activity is inconsistent with the customer profile, and
+      escalate structuring patterns for investigation.
+
+  # ── banking.compliance · conduct, data, governance ──────────────────────────
+  - id: consumer-protection-disclosure
+    domain: banking.compliance
+    citation: "CBUAE Consumer Protection Regulation, Circular No. 8/2020, and the accompanying Consumer Protection Standards"
+    grounding: >
+      Licensed financial institutions must give consumers clear, accurate and not misleading
+      information before they commit to a product, including fees, interest or profit rates,
+      and the total cost. Key terms must be presented in both Arabic and English and must be
+      understandable to the intended consumer.
+
+  - id: complaints-handling
+    domain: banking.compliance
+    citation: "CBUAE Consumer Protection Regulation, Circular No. 8/2020"
+    grounding: >
+      Institutions must operate an accessible complaints process, acknowledge complaints,
+      investigate them fairly, respond within the published service timeframe, and inform the
+      consumer of escalation rights, including to the independent ombudsman unit for
+      financial services.
+
+  - id: cooling-off-period
+    domain: banking.compliance
+    citation: "CBUAE Consumer Protection Regulation, Circular No. 8/2020"
+    grounding: >
+      For certain consumer financial products the consumer has a right to withdraw within a
+      defined cooling-off period after signing, without penalty beyond reasonable costs
+      already incurred. The institution must disclose this right, and may proceed earlier
+      only where the consumer waives it in writing.
+
+  - id: personal-data-protection
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (45) of 2021 on the Protection of Personal Data"
+    grounding: >
+      Personal data must be processed lawfully, fairly and transparently, collected for
+      specified purposes, limited to what is necessary, and kept accurate and secure. Data
+      subjects hold rights of access, rectification, erasure and objection, subject to
+      exemptions where retention is required by other law such as AML recordkeeping.
+
+  - id: bank-secrecy
+    domain: banking.compliance
+    citation: "Federal Decree-Law No. (14) of 2018 regarding the Central Bank and Organisation of Financial Institutions and Activities"
+    grounding: >
+      Customer account information is confidential and may not be disclosed except with the
+      customer's written consent, by order of a competent judicial authority, or where
+      disclosure is required by law — notably AML reporting obligations, which override
+      secrecy for the purpose of the report.
+
+  - id: outsourcing-controls
+    domain: banking.compliance
+    citation: "CBUAE regulatory framework for outsourcing by licensed financial institutions"
+    grounding: >
+      A bank remains fully accountable for outsourced functions. Material outsourcing
+      requires due diligence on the provider, a written agreement covering service levels,
+      audit and access rights, data confidentiality and location, business continuity, and
+      prior regulatory notification or approval where the arrangement is material.
+
+  - id: business-continuity
+    domain: banking.compliance
+    citation: "CBUAE operational risk and business continuity requirements for licensed financial institutions"
+    grounding: >
+      Institutions must maintain a tested business continuity and disaster recovery
+      capability covering critical functions, with defined recovery time and recovery point
+      objectives, alternate processing arrangements, and periodic testing whose results are
+      reported to senior management.
+
+  - id: fraud-reporting
+    domain: banking.compliance
+    citation: "CBUAE Consumer Protection Regulation, Circular No. 8/2020; CBUAE fraud and cyber incident reporting requirements"
+    grounding: >
+      Suspected fraud on a customer account must be investigated promptly, the affected
+      account or instrument secured, the customer informed of the outcome within the
+      published timeframe, and material incidents reported to the regulator. Liability
+      allocation depends on whether the customer acted with gross negligence.
+
+  # ── banking.retail ──────────────────────────────────────────────────────────
+  - id: account-opening-retail
+    domain: banking.retail
+    citation: "CBUAE Consumer Protection Standards; Federal Decree-Law No. (20) of 2018 on AML/CFT"
+    grounding: >
+      Opening a retail current or savings account requires identity verification, proof of
+      residential address, and evidence of income or source of funds. Residents typically
+      present an Emirates ID and residence visa; non-residents face additional requirements
+      and a narrower product range.
+
+  - id: minimum-balance-fees
+    domain: banking.retail
+    citation: "CBUAE Consumer Protection Regulation, Circular No. 8/2020"
+    grounding: >
+      Where an account carries a minimum balance requirement, the threshold and the fee for
+      falling below it must be disclosed before the account is opened, and any subsequent
+      increase requires advance notice to the customer within the regulated notice period.
+
+  - id: salary-transfer-accounts
+    domain: banking.retail
+    citation: "UAE Wages Protection System (WPS), Ministry of Human Resources and Emiratisation; CBUAE Consumer Protection Standards"
+    grounding: >
+      Salary transfer accounts receive wages routed through the Wages Protection System.
+      Products priced on the assumption of a salary transfer may be repriced if the salary
+      stops being credited, and that condition must be disclosed at the point of sale.
+
+  - id: personal-loan-affordability
+    domain: banking.retail
+    citation: "CBUAE Regulations Regarding Bank Loans and Other Services Offered to Individual Customers, Circular No. 29/2011 (as amended)"
+    grounding: >
+      Consumer lending is subject to affordability limits. Total monthly repayments are
+      capped as a proportion of verified income, loan tenor is capped, and the bank must
+      obtain and assess a credit report before approving the facility.
+
+  - id: credit-card-terms
+    domain: banking.retail
+    citation: "CBUAE Consumer Protection Regulation, Circular No. 8/2020; CBUAE Circular No. 29/2011"
+    grounding: >
+      Credit card disclosure must state the annual percentage rate, the method of interest
+      calculation, the interest-free grace period, minimum payment, and all fees including
+      cash advance, late payment, over-limit and foreign currency charges. Changes to pricing
+      require advance notice.
+
+  - id: mortgage-ltv
+    domain: banking.retail
+    citation: "CBUAE Regulations Regarding Mortgage Loans, Circular No. 31/2013"
+    grounding: >
+      Residential mortgage lending is constrained by loan-to-value caps that differ for
+      nationals and expatriates and for first versus subsequent properties, alongside limits
+      on tenor and on repayment as a share of income. The customer funds the balance of the
+      purchase price from their own resources.
+
+  - id: early-settlement
+    domain: banking.retail
+    citation: "CBUAE Regulations Regarding Bank Loans and Other Services Offered to Individual Customers, Circular No. 29/2011 (as amended)"
+    grounding: >
+      A borrower may settle a personal finance facility early. The bank may charge an early
+      settlement fee capped by regulation as a percentage of the outstanding balance, and
+      must provide a settlement quotation showing the outstanding principal and any rebate of
+      unearned interest or profit.
+
+  - id: dormant-accounts
+    domain: banking.retail
+    citation: "CBUAE Dormant Accounts Regulation, Circular No. 1/2020"
+    grounding: >
+      An account with no customer-initiated activity for a defined continuous period is
+      classified as dormant. The bank must attempt to contact the customer, restrict certain
+      activity, and after a further period transfer the balance to the unclaimed balances
+      account at the Central Bank, from which the customer may still reclaim it.
+
+  - id: cheque-handling
+    domain: banking.retail
+    citation: "Federal Decree-Law No. (14) of 2020 amending the Commercial Transactions Law regarding dishonoured cheques"
+    grounding: >
+      A cheque returned for insufficient funds triggers regulatory consequences. Partial
+      payment of the available balance is required where the beneficiary requests it, the
+      bank issues a certificate of dishonour, and repeated dishonour can lead to withdrawal
+      of the chequebook facility and reporting.
+
+  - id: debit-card-disputes
+    domain: banking.retail
+    citation: "CBUAE Consumer Protection Regulation, Circular No. 8/2020"
+    grounding: >
+      A customer disputing an unauthorised card transaction must notify the bank promptly.
+      The bank investigates within the regulated timeframe, may issue a provisional credit
+      pending resolution, and bears the loss unless it can show the customer acted
+      fraudulently or with gross negligence.
+
+  - id: atm-service-standards
+    domain: banking.retail
+    citation: "CBUAE Consumer Protection Standards"
+    grounding: >
+      Where an ATM debits an account without dispensing cash, the customer reports the
+      incident and the bank reconciles against the terminal journal and reverses the entry
+      within the published service timeframe. Fees for out-of-network withdrawals must be
+      disclosed on screen before the customer confirms.
+
+  - id: digital-onboarding
+    domain: banking.retail
+    citation: "CBUAE guidance on digital identity and electronic KYC for licensed financial institutions"
+    grounding: >
+      Remote account opening is permitted where the institution applies reliable electronic
+      identity verification — such as UAE PASS or equivalent — together with liveness
+      detection and document authentication, and applies risk controls at least equivalent to
+      face-to-face onboarding.
+
+  - id: remittance-services
+    domain: banking.retail
+    citation: "CBUAE Regulations Regarding Licensing and Monitoring of Exchange Business"
+    grounding: >
+      Outward remittances require identification of the sender, a stated purpose of transfer,
+      and disclosure of the exchange rate, fees and the total amount the beneficiary will
+      receive before the customer confirms. Records are retained under AML requirements.
+
+  # ── banking.corporate ───────────────────────────────────────────────────────
+  - id: corporate-account-opening
+    domain: banking.corporate
+    citation: "Federal Decree-Law No. (20) of 2018 on AML/CFT; Cabinet Decision No. (58) of 2020 on beneficial ownership"
+    grounding: >
+      Opening a corporate account requires the trade licence, memorandum and articles,
+      shareholder and director registers, board resolution authorising the account and
+      signatories, and identification of beneficial owners holding above the prescribed
+      ownership threshold.
+
+  - id: trade-finance-documentation
+    domain: banking.corporate
+    citation: "UCP 600 (ICC Uniform Customs and Practice for Documentary Credits); CBUAE AML/CFT guidance on trade finance"
+    grounding: >
+      Under a documentary credit the bank examines documents on their face for compliance
+      with the credit terms, not the underlying goods. Trade-based money laundering controls
+      additionally test for over- or under-invoicing, multiple financing of the same shipment
+      and goods inconsistent with the customer's business.
+
+  - id: working-capital-facilities
+    domain: banking.corporate
+    citation: "CBUAE credit risk management requirements for licensed financial institutions"
+    grounding: >
+      Working capital facilities are sized against the customer's operating cycle and
+      supported by financial statements, ageing of receivables and inventory, and covenants.
+      Facilities are reviewed at least annually, and utilisation outside the sanctioned
+      purpose is a covenant breach.
+
+  - id: credit-risk-classification
+    domain: banking.corporate
+    citation: "IFRS 9 Financial Instruments; CBUAE regulations on credit risk classification and provisioning"
+    grounding: >
+      Exposures are classified by credit quality and staged for expected credit loss. A
+      significant increase in credit risk since origination moves an exposure to lifetime
+      expected loss measurement, and objective evidence of impairment moves it to
+      credit-impaired with interest recognised on the net carrying amount.
+
+  - id: guarantees-and-lcs
+    domain: banking.corporate
+    citation: "URDG 758 (ICC Uniform Rules for Demand Guarantees); Federal Decree-Law No. (50) of 2022 on Commercial Transactions"
+    grounding: >
+      A demand guarantee is independent of the underlying contract: the guarantor pays
+      against a complying demand without investigating the dispute between the parties. The
+      instrument must state the guaranteed amount, expiry and the documents required for a
+      demand.
+
+  - id: fx-hedging-corporate
+    domain: banking.corporate
+    citation: "CBUAE market conduct and suitability requirements for licensed financial institutions"
+    grounding: >
+      Before selling a derivative hedge the bank must assess the client's understanding,
+      hedging objective and capacity to bear loss, document suitability, and disclose the
+      downside scenarios and unwind cost. Speculative use outside a documented hedging policy
+      is outside the intended purpose.
+
+  - id: payroll-wps-corporate
+    domain: banking.corporate
+    citation: "UAE Wages Protection System (WPS), Ministry of Human Resources and Emiratisation"
+    grounding: >
+      Employers within scope must pay wages through the Wages Protection System via an
+      approved agent. The salary information file and the funding must reconcile, and
+      persistent late or partial payment leads to work-permit restrictions on the employer.
+
+  # ── banking.islamic ─────────────────────────────────────────────────────────
+  - id: murabaha-structure
+    domain: banking.islamic
+    citation: "AAOIFI Shari'ah Standard on Murabaha; Higher Shari'ah Authority (HSA) resolutions, CBUAE"
+    grounding: >
+      In murabaha the bank purchases the asset and takes ownership and risk, then sells it to
+      the customer at cost plus a disclosed profit margin, payable in instalments. The profit
+      is fixed at contract and does not increase on late payment, and the sale is void if the
+      bank never owned the asset.
+
+  - id: ijara-structure
+    domain: banking.islamic
+    citation: "AAOIFI Shari'ah Standard on Ijarah; Higher Shari'ah Authority (HSA) resolutions, CBUAE"
+    grounding: >
+      Ijara is a lease in which the bank owns the asset and leases its usufruct to the
+      customer for rent. As owner the bank bears major maintenance and ownership risk
+      including total loss; the customer bears operating maintenance. Ownership may transfer
+      at the end under a separate undertaking.
+
+  - id: shariah-governance
+    domain: banking.islamic
+    citation: "CBUAE Shari'ah Governance Standard for Islamic Financial Institutions; Higher Shari'ah Authority (HSA)"
+    grounding: >
+      An Islamic financial institution must have an Internal Shari'ah Supervisory Committee
+      whose resolutions bind the institution, supported by internal Shari'ah control and
+      audit functions. The Higher Shari'ah Authority at the Central Bank sits above these and
+      its rulings prevail.
+
+  - id: late-payment-charity
+    domain: banking.islamic
+    citation: "AAOIFI Shari'ah Standards; Higher Shari'ah Authority (HSA) resolutions, CBUAE"
+    grounding: >
+      An Islamic bank may impose a late payment amount on a defaulting customer to deter
+      delay, but the proceeds cannot be recognised as income. They are paid to charity under
+      Shari'ah committee supervision, and only actual, evidenced loss may be retained by the
+      institution.
+
+  - id: profit-distribution-deposits
+    domain: banking.islamic
+    citation: "AAOIFI Shari'ah Standard on Mudarabah; CBUAE Shari'ah Governance Standard"
+    grounding: >
+      Islamic investment deposits operate on mudarabah: the depositor provides capital and
+      the bank manages it for an agreed profit-sharing ratio declared in advance. Returns are
+      not guaranteed, losses of capital are borne by the depositor absent negligence, and the
+      profit ratio may not be expressed as a fixed return on the principal.
+
+  - id: takaful-vs-insurance
+    domain: banking.islamic
+    citation: "AAOIFI Shari'ah Standard on Islamic Insurance; CBUAE takaful regulatory framework"
+    grounding: >
+      Takaful is a mutual arrangement in which participants contribute to a pooled fund used
+      to indemnify members, with the operator managing the fund for a fee or share of
+      investment profit. Surplus belongs to the participants' fund, which distinguishes it
+      from conventional insurance where underwriting profit accrues to the shareholder.

@@ -33,8 +33,19 @@ def load_manifest() -> dict[str, Any]:
     return data
 
 
+#: Shards DERIVED from the corpus rather than part of it. `calib.py` draws calibration from train
+#: and the PPL holdout from val (§5.1), so their records are re-serialised copies of records already
+#: present in the ingest shards. Globbing them into the census double-counted 768 records, inflating
+#: the published corpus size to "12,007" when it is 11,239, and skewed the language split because
+#: calibration is deliberately sampled English-heavier than the corpus.
+#: §5.1 puts `splits/` in a subdirectory for exactly this reason; these two sit at the top level and
+#: were never excluded. Match on prefix so a future derived artifact must opt in, not out.
+DERIVED_PREFIXES = ("calib_", "ppl_heldout_")
+
+
 def collect() -> tuple[list[dict[str, Any]], list[Path]]:
-    shards = sorted(PROCESSED.glob("*.jsonl"))
+    """Census shards only: the ingest outputs, never derived artifacts (see DERIVED_PREFIXES)."""
+    shards = sorted(s for s in PROCESSED.glob("*.jsonl") if not s.name.startswith(DERIVED_PREFIXES))
     records = [r for s in shards for r in read_jsonl(s)]
     return records, shards
 
@@ -45,8 +56,25 @@ def build() -> None:
 
     manifest = load_manifest()
     by_source = Counter(r["source"]["name"] for r in records)
+    # Per-source provenance is DERIVED, never trusted from the file. It used to be a hand-written
+    # literal that only `count` was recomputed around, and it drifted: sanad-bank-pairs was declared
+    # `native` while all 1,277 of its records carry `synthetic`. The aggregate split stayed honest,
+    # which is exactly why it went unnoticed — a per-source claim of "native" for machine-drafted
+    # data is a prime-directive-3 violation sitting inside a CI-gated file.
+    # Mixed sources report every value present, largest first, so the field can never quietly
+    # collapse a mixture into whichever label happened to be typed.
+    prov_by_source: dict[str, Counter[str]] = {}
+    for r in records:
+        prov_by_source.setdefault(r["source"]["name"], Counter())[r["provenance"]] += 1
     for src in manifest["sources"]:
         src["count"] = by_source.get(src["name"], 0)
+        counts = prov_by_source.get(src["name"])
+        if counts:
+            src["provenance"] = (
+                next(iter(counts))
+                if len(counts) == 1
+                else " + ".join(f"{k} {v}" for k, v in counts.most_common())
+            )
 
     n = len(records) or 1
     prov = Counter(r["provenance"] for r in records)
@@ -81,6 +109,19 @@ def gate(profile: str) -> None:
     if manifest.get("profile") != profile:
         raise SystemExit(
             f"manifest profile is '{manifest.get('profile')}', gate ran for '{profile}'"
+        )
+
+    # A gate that passes on an empty manifest is not a gate. The repo shipped the unpopulated
+    # template (counts 0, generated_at null) for all of P1–P5, so `just data-gate` logged
+    # `data_gate_ok records=0` in CI and locally while asserting nothing whatsoever — and every eval
+    # report stamped that template's sha256 as `data_manifest_sha256`, so the lineage field did not
+    # identify the dataset actually used. Refuse to certify a manifest with no records.
+    declared = int((manifest.get("totals") or {}).get("records") or 0)
+    if declared == 0 or not manifest.get("shards"):
+        raise SystemExit(
+            "data-gate FAILED: manifest declares 0 records / no shards — it is the unpopulated "
+            "template. Run `just data` to regenerate it before gating; a vacuous pass is worse "
+            "than a failure because it looks like evidence."
         )
 
     allowed = set(manifest.get("allowed_licenses", [])) or ALLOWED_COMMERCIAL

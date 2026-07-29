@@ -12,6 +12,7 @@ secrets/**
 __pycache__/
 *.py[cod]
 .venv/
+.venv-eval/ # isolated lm-eval+vLLM env — kept apart from the training env (ADR-0006)
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/

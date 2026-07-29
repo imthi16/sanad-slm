@@ -17,6 +17,7 @@ import importlib.util
 import os
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,10 @@ PASS, WARN, FAIL = "PASS", "WARN", "FAIL"
 #: different numbers: a 16 GB card running a 16 GB peak has no headroom for fragmentation or the
 #: merge step, so the card must be meaningfully larger than the budget it has to fit inside.
 MIN_GPU_VRAM_GB = 20.0
+
+#: Unsloth's import is slow by design — it patches the interpreter and compiles kernels on the way
+#: in. Minutes is normal on a cold cache; hanging is not.
+IMPORT_TIMEOUT_S = 300
 
 
 class Report:
@@ -88,7 +93,9 @@ def check_gpu(rep: Report, peak_budget_gb: float) -> None:
         )
 
 
-def check_packages(rep: Report) -> None:
+def check_packages(rep: Report) -> bool:
+    """Cheap presence check. Returns True when every module was found on disk."""
+    ok = True
     for mod, extra in (
         ("unsloth", "train"),
         ("trl", "train"),
@@ -104,8 +111,51 @@ def check_packages(rep: Report) -> None:
                 else f"uv sync --extra {extra}"
             )
             rep.add(FAIL, mod, f"missing — {hint}")
+            ok = False
         else:
             rep.add(PASS, mod, "installed")
+    return ok
+
+
+def check_train_imports(rep: Report) -> None:
+    """Import the training stack for real, in a subprocess.
+
+    `check_packages` above proves only that the directories exist; `find_spec` never executes an
+    `__init__`. That gap is not theoretical. On 2026-07-26 preflight reported 14 passed / 0
+    blocking and `just train` died one second later on `ImportError: cannot import name
+    'ConstantLengthDataset' from 'trl.trainer.utils'` — uv had resolved an Unsloth predating TRL
+    1.0, so every module was present and the graph still could not import (ADR-0006). An
+    inconsistent pinned set is precisely the class of failure preflight exists to catch before a
+    multi-hour run, so pay the import cost here where it costs seconds instead of an evening.
+
+    Subprocess, because importing Unsloth patches the interpreter it lands in and preflight should
+    not carry that; it also contains a hard crash and lets us bound the wait.
+    """
+    probe = "import unsloth, trl, peft; from unsloth import FastLanguageModel"
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", probe],
+            capture_output=True,
+            text=True,
+            timeout=IMPORT_TIMEOUT_S,
+            cwd=ML_ROOT,
+        )
+    except subprocess.TimeoutExpired:
+        rep.add(
+            FAIL,
+            "train imports",
+            f"still importing after {IMPORT_TIMEOUT_S}s — treat as hung, not slow",
+        )
+        return
+
+    if proc.returncode == 0:
+        rep.add(PASS, "train imports", "unsloth + trl + peft import cleanly together")
+        return
+
+    # The last non-empty stderr line is the exception; the traceback above it is noise here.
+    lines = [ln for ln in (proc.stderr or "").strip().splitlines() if ln.strip()]
+    why = lines[-1] if lines else f"exited {proc.returncode} with no output"
+    rep.add(FAIL, "train imports", f"{why} — pinned set is inconsistent, see ADR-0006")
 
 
 def check_config(rep: Report, cfg_path: Path) -> dict[str, Any]:
@@ -187,7 +237,10 @@ def main() -> None:
     cfg = check_config(rep, args.config)
     peak_budget = float((cfg.get("budget") or {}).get("max_peak_vram_gb", 16))
     check_gpu(rep, peak_budget)
-    check_packages(rep)
+    # Only worth a real import once every module is actually on disk — otherwise the import
+    # failure just restates the missing-package rows above.
+    if check_packages(rep):
+        check_train_imports(rep)
     check_data(rep, cfg)
     check_offline_posture(rep)
     check_disk(rep)

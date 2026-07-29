@@ -26,7 +26,7 @@ def settings() -> Settings:
 async def app(settings: Settings) -> AsyncIterator[FastAPI]:
     """App wired for tests: real router resolution, no DB/Redis (degraded-mode paths)."""
     application = create_app()
-    application.router.lifespan_context = _noop_lifespan  # type: ignore[assignment]
+    application.router.lifespan_context = _noop_lifespan
     application.state.settings = settings
     application.state.http = httpx.AsyncClient(timeout=10)
     application.state.router = ModelRouter(settings, application.state.http)

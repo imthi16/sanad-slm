@@ -29,7 +29,7 @@ def _write_mini_tokenizer(root: Path, alias: str) -> None:
     vocab = {w: i for i, w in enumerate(dict.fromkeys(words))}
     vocab["[UNK]"] = len(vocab)
     tok = Tokenizer(WordLevel(vocab, unk_token="[UNK]"))
-    tok.pre_tokenizer = Whitespace()  # type: ignore[assignment]
+    tok.pre_tokenizer = Whitespace()
     target = root / KNOWN_TOKENIZERS[alias]
     target.mkdir(parents=True)
     tok.save(str(target / "tokenizer.json"))

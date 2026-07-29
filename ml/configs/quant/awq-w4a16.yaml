@@ -5,6 +5,18 @@ recipe:
     quant_modifiers:
       AWQModifier:
         ignore: ["lm_head"]
+        # Memory, not math: neither key changes the quantization result.
+        # `offload_device` only moves cached activations off the GPU while smoothing, and
+        # `sequential_targets` pins the subgraph boundary to what llm-compressor already picks
+        # from the model's `no_split_params` — stated explicitly so the memory profile cannot
+        # shift under a changed upstream default.
+        #
+        # llm-compressor defaults `offload_device` to None for dense models and only sets 'cpu'
+        # automatically for MoE. Qwen3-4B is dense, so the whole calibration set's cached
+        # activations stayed resident alongside 7.6 GB of bf16 weights and the 4090 OOM'd at
+        # `_accumulate_mean` on 2026-07-28 with 54 MiB free of 23.52 GiB.
+        offload_device: cpu
+        sequential_targets: ["Qwen3DecoderLayer"]
         config_groups:
           group_0:
             targets: ["Linear"]
