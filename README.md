@@ -64,10 +64,10 @@ the comparison is a column you read rather than a sequence you have to remember.
 
 > **This is real tokenizer output — counts and dash boundaries both.** Every number and every cut
 > comes from `POST /v1/tokenize/fertility`'s own service code run over the `tokenizer.json` files
-> `just sync-tokenizers` fetches, at the revisions recorded in `tokenizers.manifest.json`; the
-> payload is committed at
-> [`docs/screenshots/specimen-demo-payload.json`](docs/screenshots/specimen-demo-payload.json) and
-> the recording is reproducible with `just capture-specimen`.
+> `just sync-tokenizers` fetches. The payload is committed at
+> [`docs/screenshots/specimen-demo-payload.json`](docs/screenshots/specimen-demo-payload.json),
+> including the resolved revision sha of each tokenizer that produced it, and the recording is
+> reproducible with `just capture-specimen`.
 >
 > Two caveats, both visible in the frame rather than hidden here. **`jais-family` and `llama-3.2`
 > read `—`**: they are gated repositories awaiting manual approval (§15), and an unmeasured row
@@ -129,8 +129,9 @@ Details in [ADR-0005](./docs/adr/0005-specimen-hero-rubrication-design.md).
 > **About these captures.** The Specimen images — the banner at the top, the Arabic homepage on the
 > left, and the GIF above — carry **real tokenizer output** for the sentence they show, from the
 > **3 of 5** tokenizers `just sync-tokenizers` can fetch (Qwen3, Falcon-H1, and ALLaM converted from
-> sentencepiece — each with its source commit in `out/tokenizers/tokenizers.manifest.json`). jais and
-> Llama-3.2 are gated, so their rows read `—`.
+> sentencepiece — each with its source commit recorded alongside the numbers in the
+> [demo payload](docs/screenshots/specimen-demo-payload.json)). jais and Llama-3.2 are gated, so
+> their rows read `—`.
 >
 > **The Fertility Lab capture on the right is the exception**: that page reads the corpus-level
 > report, and `just fertility` still cannot run — the **three frozen corpora do not exist yet**

@@ -480,7 +480,10 @@ hygiene, BALSAM-style).
 fetches the five `tokenizer.json` files (**tokenizers only, never weights**) into
 `out/tokenizers/<org>__<model>/`, the layout `measure.py` and the API's `tokenizers_dir` both
 expect, and records the resolved revision sha per tokenizer in `tokenizers.manifest.json` so a
-published tokens/word figure is tied to a tokenizer version. Sovereign mode cannot sync (no hub) —
+published tokens/word figure is tied to a tokenizer version. **That manifest lives under `ml/out/`
+and is therefore gitignored** — anything published must carry the revisions with it rather than
+pointing at it, which is why `measure_specimen.py` copies them into the demo payload it commits.
+Sovereign mode cannot sync (no hub) —
 populate the directory while online and copy it to the air-gapped host. tokens/word for {Qwen3, jais-family, ALLaM,
 Falcon-H1, Llama-3.2} tokenizers over three fixed corpora (MSA news 10k words, banking-domain 5k,
 English 10k). Outputs `fertility.json` → consumed by the API and the 3D hero. This is the
