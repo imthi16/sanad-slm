@@ -54,6 +54,7 @@ about two steps). Read the curve as coarse, not converged. MLflow run `b8ccaafc`
 |---|---|---|---|
 | ArabicMMLU (0-shot, 14,455 items) | **59.79%** ±0.40 | **59.33%** ±0.40 (bf16, shipped) | **−0.46 pt** |
 | ArabicMMLU — AWQ W4A16 (withheld) | 59.79% ±0.40 | 57.58% ±0.40 | −2.21 pt |
+| ArabicMMLU — **ALLaM-7B-Instruct-preview** (Arabic-native comparator, 7B) | — | **70.01%** ±0.37 | **+10.68 pt over this model** |
 | AraTrust | — | — | not in the pinned harness rev |
 | MadinahQA | — | — | not in the pinned harness rev |
 | ALRAGE | — | — | not in the pinned harness rev |
@@ -74,9 +75,17 @@ intact. This is *not* a quality improvement, and ArabicMMLU is not a benchmark w
 domain SFT should be expected to produce one. Per category, all four move down by between 0.21 and
 1.11 pt — each inside its own interval, which is the shape of noise rather than a trade-off.
 
-**No comparator** (ALLaM-7B, jais-6.7b, or a large generalist) was measured, so no relative claim of
-any kind exists. Matching its own base model on a general benchmark says nothing about matching a
-larger one.
+**One comparator was measured, and this model loses to it.** ALLaM-7B-Instruct-preview scores
+**70.01%** — 10.68 points above this model. That is the expected outcome: 1.75× the parameters and
+Arabic-native pretraining, against a general-purpose 4B given 12,007 instruction records. The gap
+is monotone in how much Arabic cultural/linguistic knowledge a category needs — **Humanities +19.99
+pt, STEM only +1.53 pt** — which is what native pretraining actually buys.
+
+It does not contradict this project's thesis (in-domain banking), but it does close off any reading
+of these numbers as general Arabic competitiveness. **jais-6.7b was not measured** (gated repo, the
+train box's HF account is unauthorised), and **no large generalist was measured** — so the
+"matches a 5–10× larger model" claim remains unavailable, and the one comparator that does exist is
+1.75× the size and wins.
 
 ### Domain eval — **not available**
 

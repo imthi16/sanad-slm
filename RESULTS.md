@@ -36,6 +36,8 @@ whose evidence is untracked is not a claim.
 | `base/Qwen3-4B-Instruct-2507/PROVENANCE.yaml` | `7424e24a8a0bb56c1bc8d3d008c2d03bfdca064cae4d574345ef9bd4216a07a4` |
 | `awq/awq-w4a16/…/results_2026-07-29T10-34-58.885145.json` | `8b045e3d5b7ecb68c648f54d660b51442c5a34e58e9fabcf0b1af94af32492af` |
 | `awq/awq-w4a16/PROVENANCE.yaml` | `9c7f179bb738f830d2e3671a6d7e5834f93c69a136f59bd537875ea80fe0bc6c` |
+| `comparator-allam/…/results_2026-07-29T11-10-20.827214.json` | `c9c08310442e3706e4aa421a978a715ca6237b43e857becb8c10c05b78a7ac86` |
+| `comparator-allam/ALLaM-7B-Instruct-preview/PROVENANCE.yaml` | `3421f7d7bed46f6f9554987b956e0f3e39bb24d2feafeb7c4b58ef7a7aa6c9d0` |
 
 The two `log_samples` trees (52,291 per-sample records per model, 44 MB each) are **not** committed;
 they stay in `~/sanad-artifacts/`. The `results*.json` above hold every aggregate quoted in §5.
@@ -258,11 +260,36 @@ Both models scored with the **identical** command (§5.4a): lm-evaluation-harnes
 `max_model_len=8192`, `gpu_memory_utilization=0.85`, bf16, vLLM 0.26.0 on one RTX 4090.
 14,455 items across 45 subtasks. Run 2026-07-29, ~7 min of scoring per model.
 
-| model | ArabicMMLU acc | stderr | vs base |
+| model | params | ArabicMMLU acc | stderr | vs our bf16 |
+|---|---|---|---|---|
+| **`humain-ai/ALLaM-7B-Instruct-preview`** (Arabic-native comparator) | 7B | **70.01%** | ±0.37 | **+10.68 pt** |
+| `Qwen/Qwen3-4B-Instruct-2507` (base, rev `cdbee75f…`) | 4B | 59.79% | ±0.40 | +0.46 pt |
+| `sanad-qwen3-4b-bank` merged-bf16 (**shipped**) | 4B | **59.33%** | ±0.40 | — |
+| `sanad-qwen3-4b-bank` AWQ W4A16 (**not shipped**, §4) | 4B | 57.58% | ±0.40 | −1.75 pt |
+
+**ALLaM-7B beats our model by 10.68 points on ArabicMMLU, and that is the expected result.** It is
+1.75× the parameters and Arabic-native by pretraining, against a general-purpose 4B given 12,007
+instruction records. Nothing in this project's thesis predicted otherwise: the claim was always
+about *in-domain banking*, and ArabicMMLU is general Arabic knowledge. Reporting it prominently
+rather than burying it is the point of running a comparator at all.
+
+Where the gap sits is more informative than its size:
+
+| category | ALLaM-7B | our bf16 | gap |
 |---|---|---|---|
-| `Qwen/Qwen3-4B-Instruct-2507` (base, rev `cdbee75f…`) | **59.79%** | ±0.40 | — |
-| `sanad-qwen3-4b-bank` merged-bf16 (**shipped**) | **59.33%** | ±0.40 | **−0.46 pt** |
-| `sanad-qwen3-4b-bank` AWQ W4A16 (**not shipped**, §4) | **57.58%** | ±0.40 | **−2.21 pt** |
+| **Humanities** | 74.70% | 54.71% | **+19.99** |
+| Language | 73.57% | 60.81% | +12.76 |
+| Other | 74.15% | 63.08% | +11.07 |
+| Social Science | 66.55% | 58.42% | +8.13 |
+| **STEM** | **63.42%** | **61.89%** | **+1.53** |
+
+The gap is not uniform — it is **monotone in how much Arabic cultural and linguistic knowledge the
+category requires**. Humanities is a 20-point rout; STEM is +1.53 pt (~1.3σ, i.e. barely
+distinguishable). An Arabic-native pretraining corpus buys Arabic humanities, language and culture,
+and buys almost nothing on maths and science, where the underlying competence transfers across
+languages. That structure is a better finding than the headline delta, and it is exactly the kind of
+observation a pooled single number would have destroyed — the same argument this project makes for
+per-language quantization gates, arriving independently on the benchmark side.
 
 **§9.5 no-catastrophic-forgetting gate: PASSED for bf16** (requires ≥ base − 1.0 pt). **The AWQ
 artifact fails it** at −2.21 pt, and separately fails §5.3's quantization clause at −1.75 pt vs its
@@ -288,9 +315,13 @@ mostly small-*n* subtasks and should not be over-read: `arabic_language_middle_s
 
 **What this section does not contain.** `aratrust`, `madinahqa` and `alrage` are named in
 CLAUDE.md §15 as available "via lm-eval tasks"; at this pinned rev they **do not exist in the
-harness** (grepped, not assumed), so only ArabicMMLU could be run. No comparator (ALLaM-7B,
-jais-6.7b, a large generalist) was measured, so **no relative claim is available**. The other half
-of the §9.5 gate — domain ≥ base +5 pts — remains unevaluable while the domain set holds 12/300 items.
+harness** (grepped, not assumed), so only ArabicMMLU could be run. **jais-family-6.7b-chat was not
+measured** — it is `gated: auto` and the train box's Hugging Face account is not on the authorised
+list, which needs a human to accept the terms once; the run 403'd. **No large generalist was
+measured**, so the "matches a 5–10× larger model" claim remains unavailable: ALLaM-7B is 1.75× our
+size, not 5–10×, and it *wins*. The other half of the §9.5 gate — domain ≥ base +5 pts — remains
+unevaluable while the domain set holds 12/300 items, which is also the only axis on which this
+project ever claimed to compete.
 
 Three attempts were needed to get here; the two bugs are recorded in §7 rather than hidden, because
 both were failures of *our* harness, not of the models.

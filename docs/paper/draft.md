@@ -208,11 +208,32 @@ lm-evaluation-harness at `6d642546f4688648fced259eb3302efd36ece5af` (v0.4.12),
 `--tasks arabicmmlu --num_fewshot 0 --seed 3407`, bf16, `max_model_len=8192`, vLLM 0.26.0, one
 RTX 4090. 14,455 items over 45 subtasks.
 
-| model | ArabicMMLU (0-shot) | stderr |
-|---|---|---|
-| `Qwen/Qwen3-4B-Instruct-2507` (base) | 59.79% | ±0.40 |
-| this work, merged bf16 | 59.33% | ±0.40 |
-| delta | **−0.46 pt** | σ_diff = 0.56 |
+| model | params | ArabicMMLU (0-shot) | stderr |
+|---|---|---|---|
+| `humain-ai/ALLaM-7B-Instruct-preview` (Arabic-native) | 7B | **70.01%** | ±0.37 |
+| `Qwen/Qwen3-4B-Instruct-2507` (base) | 4B | 59.79% | ±0.40 |
+| this work, merged bf16 | 4B | 59.33% | ±0.40 |
+| delta vs base | | **−0.46 pt** | σ_diff = 0.56 |
+| delta vs ALLaM-7B | | **−10.68 pt** | σ_diff = 0.54 |
+
+**ALLaM-7B outperforms our model by 10.68 points, and we report it as the expected result.** It has
+1.75× the parameters and Arabic-native pretraining; we have a general-purpose 4B and 12,007
+instruction records. The informative part is that the gap is **monotone in how much Arabic
+cultural and linguistic knowledge a category demands**:
+
+| category | ALLaM-7B | this work | gap |
+|---|---|---|---|
+| Humanities | 74.70% | 54.71% | **+19.99** |
+| Language | 73.57% | 60.81% | +12.76 |
+| Other | 74.15% | 63.08% | +11.07 |
+| Social Science | 66.55% | 58.42% | +8.13 |
+| STEM | 63.42% | 61.89% | **+1.53** |
+
+A 20-point rout on Humanities collapses to 1.53 pt (~1.3σ) on STEM. Native-corpus pretraining buys
+Arabic humanities, language and culture; it buys almost nothing on mathematics and science, where
+the competence evidently transfers across languages. A pooled single number would have hidden this
+structure — the same argument we make for per-language quantization gates in §6.2, arriving
+independently on the benchmark side.
 
 The delta clears the −1 pt catastrophic-forgetting threshold we set in advance, and it is **smaller
 than the standard error of the difference** — i.e. indistinguishable from zero at 95%. The defensible
@@ -223,9 +244,11 @@ a domain-versus-general trade-off, and we do not claim the reverse either.
 
 Two honest limits on this table. First, `aratrust`, `madinahqa` and `alrage` — named in our own
 pinned-asset matrix as harness-provided — **do not exist at the pinned rev**, so the benchmark axis is
-one task wide, not four. Second, **no comparator was measured**: parity with one's own base model on a
-general benchmark is a regression check, and carries no information about the small-versus-large
-question in §1. That question remains open, and §6.6 is where it would have been answered.
+one task wide, not four. Second, **no *large* generalist was measured**: ALLaM-7B is 1.75× our size,
+not 5–10×, and it wins, so the small-versus-large question in §1 remains open rather than answered
+favourably. `jais-family-6.7b-chat` could not be run — it is a gated repository and our compute
+host's account was unauthorised, which is a mundane access problem worth naming because it silently
+shrinks reproducible comparator matrices.
 
 ### 6.5.1 Perplexity does not predict 4-bit accuracy loss
 

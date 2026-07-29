@@ -352,13 +352,15 @@ persisted** by default.
 > `edge_bench_x86-local.txt` (`3fa61ce6…`); training cost and VRAM to MLflow run `b8ccaafc`.
 >
 > Read the deltas carefully: **−0.46 pt on ArabicMMLU is a forgetting check against this model's own
-> base**, and it is smaller than the 0.56 pt standard error of the difference. It is not an
-> improvement, and it says nothing about a 5–10× larger model — no comparator was ever run.
+> base**, and it is smaller than the 0.56 pt standard error of the difference — not an improvement.
+> And the one comparator that was measured, **ALLaM-7B, beats this model by 10.68 pt**: it is
+> Arabic-native and 1.75× the size, so that is the expected result and it is reported rather than
+> omitted. No 5–10× generalist was run, so that headline claim remains unavailable.
 
 | Metric | Base Qwen3-4B | Sanad (fine-tuned) | ALLaM-7B | jais-6.7b | Falcon-H1-7B\* | Lands at |
 |---|---|---|---|---|---|---|
 | Domain eval (300 items) | — | — | — | — | — | blocked · 12/300 items authored |
-| ArabicMMLU (0-shot, 14,455 items) | **59.79%** ±0.40 | **59.33%** ±0.40 | — | — | — | ✅ measured 2026-07-29 |
+| ArabicMMLU (0-shot, 14,455 items) | **59.79%** ±0.40 | **59.33%** ±0.40 | **70.01%** ±0.37 | — (gated repo) | — | ✅ measured 2026-07-29 |
 | ArabicMMLU — AWQ W4A16 (**withheld**) | 59.79% ±0.40 | 57.58% ±0.40 | — | — | — | ❌ −1.75 pt vs bf16, fails its gate |
 | 3C3H (human-anchored) | — | — | — | — | — | blocked · needs a native-speaker κ sample |
 | Edge gen tok/s, CPU-only (`x86-local`) | n/a | **6.19** (`llama-bench -t 6 -n 32`); ~4.7 end-to-end via `llama-server` | — | — | — | ✅ measured (Q4_K_M) |
