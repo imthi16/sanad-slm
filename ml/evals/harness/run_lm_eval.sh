@@ -19,6 +19,17 @@ LM_EVAL_REV="${LM_EVAL_REV:-6d642546f4688648fced259eb3302efd36ece5af}" # v0.4.12
 # Adding the OALL-v2 leaderboard groups is a separate, much longer run — validate first.
 TASKS="${SANAD_LM_EVAL_TASKS:-arabicmmlu}"
 NUM_FEWSHOT=0
+
+# Qwen3-4B-Instruct-2507 advertises max_position_embeddings=262144, and vLLM sizes its KV cache to
+# the model's full context unless told otherwise: 36 GiB of KV against the 11.45 GiB left on a
+# 24 GB card after weights, so the engine core refuses to start before a single token is scored.
+# That killed both P4 evals on 2026-07-28 — identical `Engine core initialization failed` for
+# fine-tuned and base, which reads like a broken environment and is really just a default.
+# 8192 matches the serving envelope in CLAUDE.md §6.1 and is ~8× the longest ArabicMMLU 0-shot
+# prompt. It MUST stay identical across every model in the §5.2 matrix or the numbers aren't
+# comparable — that is why it lives here as a pin and not in the caller.
+MAX_MODEL_LEN="${SANAD_LM_EVAL_MAX_LEN:-8192}"
+GPU_MEM_UTIL="${SANAD_LM_EVAL_GPU_UTIL:-0.85}"
 # ────────────────────────────────────────────────────────────────────────────
 
 MODEL="${1:?usage: run_lm_eval.sh <model> [run_id]}"
@@ -66,7 +77,7 @@ fi
 
 mkdir -p "$OUT"
 "$EVAL_VENV/bin/lm_eval" --model vllm \
-    --model_args "pretrained=${MODEL},dtype=bfloat16,gpu_memory_utilization=0.85" \
+    --model_args "pretrained=${MODEL},dtype=bfloat16,gpu_memory_utilization=${GPU_MEM_UTIL},max_model_len=${MAX_MODEL_LEN}" \
     --tasks "$TASKS" \
     --num_fewshot "$NUM_FEWSHOT" \
     --batch_size auto \
@@ -80,6 +91,8 @@ mkdir -p "$OUT"
     echo "lm_eval_rev: $LM_EVAL_REV"
     echo "tasks: $TASKS"
     echo "num_fewshot: $NUM_FEWSHOT"
+    echo "max_model_len: $MAX_MODEL_LEN"
+    echo "gpu_memory_utilization: $GPU_MEM_UTIL"
     echo "seed: 3407"
     echo "eval_venv: $EVAL_VENV"
     echo "data_manifest_sha256: $(sha256sum "$ML_ROOT/data/MANIFEST.yaml" | cut -d' ' -f1)"
