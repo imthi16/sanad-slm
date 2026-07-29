@@ -31,6 +31,13 @@ NUM_FEWSHOT=0
 # comparable — that is why it lives here as a pin and not in the caller.
 MAX_MODEL_LEN="${SANAD_LM_EVAL_MAX_LEN:-8192}"
 GPU_MEM_UTIL="${SANAD_LM_EVAL_GPU_UTIL:-0.85}"
+
+# Appended verbatim to --model_args, for per-model requirements that are NOT part of the
+# measurement: `trust_remote_code=True` for comparators that ship custom modelling code
+# (jais), for instance. Anything that changes *what is measured* belongs above as a pin, not
+# here — the pins must stay identical across the §5.2 matrix, and this hook deliberately does not.
+# Whatever is passed lands in PROVENANCE.yaml so a report always records it.
+EXTRA_MODEL_ARGS="${SANAD_LM_EVAL_EXTRA_ARGS:-}"
 # ────────────────────────────────────────────────────────────────────────────
 
 MODEL="${1:?usage: run_lm_eval.sh <model> [run_id]}"
@@ -89,8 +96,11 @@ if "$EVAL_VENV/bin/lm_eval" validate --tasks "$TASKS" 2>&1 | grep -q "not found"
 fi
 
 mkdir -p "$OUT"
+MODEL_ARGS="pretrained=${MODEL},dtype=bfloat16,gpu_memory_utilization=${GPU_MEM_UTIL},max_model_len=${MAX_MODEL_LEN}"
+[[ -n "$EXTRA_MODEL_ARGS" ]] && MODEL_ARGS="${MODEL_ARGS},${EXTRA_MODEL_ARGS}"
+echo "→ model_args: $MODEL_ARGS" >&2
 "$EVAL_VENV/bin/lm_eval" --model vllm \
-    --model_args "pretrained=${MODEL},dtype=bfloat16,gpu_memory_utilization=${GPU_MEM_UTIL},max_model_len=${MAX_MODEL_LEN}" \
+    --model_args "$MODEL_ARGS" \
     --tasks "$TASKS" \
     --num_fewshot "$NUM_FEWSHOT" \
     --batch_size auto \
@@ -106,6 +116,7 @@ mkdir -p "$OUT"
     echo "num_fewshot: $NUM_FEWSHOT"
     echo "max_model_len: $MAX_MODEL_LEN"
     echo "gpu_memory_utilization: $GPU_MEM_UTIL"
+    echo "extra_model_args: ${EXTRA_MODEL_ARGS:-none}"
     echo "seed: 3407"
     echo "eval_venv: $EVAL_VENV"
     echo "data_manifest_sha256: $(sha256sum "$ML_ROOT/data/MANIFEST.yaml" | cut -d' ' -f1)"
