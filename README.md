@@ -32,7 +32,7 @@ That is the tax this project measures, and the rule under the sentence is where 
 
 ## Status
 
-> **As of 2026-07-28 — P0–P3 and P5 have run. The model exists and is measured.**
+> **As of 2026-07-29 — P0–P5 have run. The model exists, is measured, and is benchmarked.**
 >
 > A ~4B bilingual model was trained (**44 min, peak VRAM 15.59 GB, $0**), quantized two ways with
 > per-language quality gates passed (**Arabic ΔPPL +1.44% AWQ, +2.39% GGUF**), and now answers
@@ -342,22 +342,30 @@ persisted** by default.
 ## Results
 
 > **Honest-claims policy** (prime directive 5). This table populates only from hashed report files
-> in `ml/evals/reports/`. **No number appears here before its report exists** — which is why the
-> remaining cells are em-dashes rather than plausible placeholders. The ArabicMMLU row traces to
-> `results_2026-07-29T09-41-07…json` (sha256 `1e7301d1…`, fine-tuned) and
-> `results_2026-07-29T09-49-43…json` (sha256 `c758c32f…`, base). Comparator columns are empty because
-> those models were never run — a −0.46 pt delta against its **own base** is a forgetting check and
-> says nothing about a 5–10× larger model.
+> in `ml/evals/reports/`, listed with their sha256 in [`RESULTS.md`](./RESULTS.md#traceability-prime-directive-6).
+> **No number appears here before its report exists** — which is why the remaining cells are
+> em-dashes rather than plausible placeholders. ArabicMMLU traces to
+> `results_2026-07-29T09-41-07…json` (`1e7301d1…`, fine-tuned) and
+> `results_2026-07-29T09-49-43…json` (`c758c32f…`, base); the edge figures to
+> `edge_bench_x86-local.txt` (`3fa61ce6…`); training cost and VRAM to MLflow run `b8ccaafc`.
+>
+> Read the deltas carefully: **−0.46 pt on ArabicMMLU is a forgetting check against this model's own
+> base**, and it is smaller than the 0.56 pt standard error of the difference. It is not an
+> improvement, and it says nothing about a 5–10× larger model — no comparator was ever run.
 
 | Metric | Base Qwen3-4B | Sanad (fine-tuned) | ALLaM-7B | jais-6.7b | Falcon-H1-7B\* | Lands at |
 |---|---|---|---|---|---|---|
-| Domain eval (300 items) | — | — | — | — | — | P4 |
+| Domain eval (300 items) | — | — | — | — | — | blocked · 12/300 items authored |
 | ArabicMMLU (0-shot, 14,455 items) | **59.79%** ±0.40 | **59.33%** ±0.40 | — | — | — | ✅ measured 2026-07-29 |
-| 3C3H (human-anchored) | — | — | — | — | — | P4 |
-| Edge tok/s @ watts (`x86-local`) | — | — | — | — | — | P3 |
-| Training cost | — | — | — | — | — | P2 · < $50 gate |
+| 3C3H (human-anchored) | — | — | — | — | — | blocked · needs a native-speaker κ sample |
+| Edge gen tok/s, CPU-only (`x86-local`) | n/a | **6.19** (`llama-bench -t 6 -n 32`); ~4.7 end-to-end via `llama-server` | — | — | — | ✅ measured (Q4_K_M) |
+| Edge watts | — | — | — | — | — | Intel RAPL unreadable without sudo |
+| Training cost | n/a | **$0** (0.73 h local, peak VRAM 15.59 GB) | — | — | — | ✅ measured · < $50 gate |
 
 \* Falcon-H1 is a benchmark comparator only (Falcon-LLM License — never in the shipping path).
+Comparator columns are empty throughout because none of those models was run. "n/a" marks cells where
+the metric does not apply to the base model — the edge artifact and the training cost are properties
+of *this* fine-tune, not of an upstream checkpoint.
 
 The release gate is honest by construction: the fine-tuned model must beat base by **≥ +5 pts**
 in-domain while staying within **−1 pt** on ArabicMMLU (no catastrophic forgetting), or the build
@@ -387,13 +395,13 @@ Phases are PR milestones, each with acceptance criteria in [CLAUDE.md §13](./CL
 | Phase | Scope | Status |
 |---|---|---|
 | **P0 · Skeleton** | monorepo, justfile, CI, compose stack, RTL app shell | **done** — `just check` green, RTL+LTR snapshots green |
-| **P1 · Data** | CIDAR ingest, 300 banking pairs, dedup/langid, manifest gate | **next** — tooling ready, nothing ingested |
-| **P2 · Train + merge** | QLoRA on the local RTX 4090, MLflow, $0, < 16 GB VRAM | not started |
-| **P3 · Quantize + serve** | AWQ + GGUF+imatrix, ppl-gate, vLLM chart, CPU edge profile | not started |
-| **P4 · Eval harness** | full matrix, domain eval frozen, judges + human validation | **partial** — ArabicMMLU measured on fine-tuned + base (gate passed); no comparator, no domain eval, no judges |
-| **P5 · Full app** | chat SSE end to end, live Specimen, all pages and scenes | partial — scenes and API built, wiring at P5 |
-| **P6 · Sovereign hardening** | egress-zero 24 h, cosign verify path, checklist green | not started |
-| **P7 · Position + publish** | README numbers, model card, workshop paper draft | not started |
+| **P1 · Data** | CIDAR ingest, 300 banking pairs, dedup/langid, manifest gate | **done** — 12,007 records (CIDAR 9,962 + 1,277 own), gate green, provenance split published. Caveat: the banking pairs are **synthetic and unreviewed** |
+| **P2 · Train + merge** | QLoRA on the local RTX 4090, MLflow, $0, < 16 GB VRAM | **done** — 0.73 h, peak VRAM **15.59 GB**, **$0**, 78 optimizer steps; merged-bf16 + manifest. Acceptance criteria met |
+| **P3 · Quantize + serve** | AWQ + GGUF+imatrix, ppl-gate, vLLM chart, CPU edge profile | **partial** — AWQ **and** GGUF Q4_K_M built, both ppl gates passed per language, edge bench recorded (`x86-local`). The vLLM-on-k3s half is unexercised (no Docker/sudo locally) |
+| **P4 · Eval harness** | full matrix, domain eval frozen, judges + human validation | **partial** — ArabicMMLU measured on fine-tuned + base, forgetting gate passed; no comparator, no domain eval (12/300 items), no judges, no human κ |
+| **P5 · Full app** | chat SSE end to end, live Specimen, all pages and scenes | **partial** — streaming **and** non-streaming chat verified end to end against our own GGUF on CPU (`p5_e2e.json`), `x_sanad` metadata intact; `/readyz` red without Postgres/Redis; responses still carry the `<tool_call>` defect |
+| **P6 · Sovereign hardening** | egress-zero 24 h, cosign verify path, checklist green | not started — 3 checklist items need a live cluster |
+| **P7 · Position + publish** | README numbers, model card, workshop paper draft | **partial** — model card and `docs/paper/draft.md` written from measured results; no signed release, no blog post |
 
 <details>
 <summary><b>Monorepo map</b></summary>
