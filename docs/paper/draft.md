@@ -197,11 +197,37 @@ code-switching** — Latin `mobile banking app` remains intact inside an Arabic 
 minority case. Two defects are visible: the served model prefixes responses with stray
 `<tool_call>` control tokens, and the domain answer quoting USD for an AED product (§3).
 
-### 6.5 Standardized benchmarks — **incomplete**
+### 6.5 Standardized benchmarks — ArabicMMLU, no comparator
 
-ArabicMMLU, AraTrust, MadinahQA and ALRAGE are wired at a pinned harness commit but **not reported
-here**. No comparator (ALLaM-7B, jais-6.7b, or a large generalist) was measured. Consequently this
-paper makes **no relative quality claim of any kind.**
+Both the fine-tuned model and its own base were scored with an identical command:
+lm-evaluation-harness at `6d642546f4688648fced259eb3302efd36ece5af` (v0.4.12),
+`--tasks arabicmmlu --num_fewshot 0 --seed 3407`, bf16, `max_model_len=8192`, vLLM 0.26.0, one
+RTX 4090. 14,455 items over 45 subtasks.
+
+| model | ArabicMMLU (0-shot) | stderr |
+|---|---|---|
+| `Qwen/Qwen3-4B-Instruct-2507` (base) | 59.79% | ±0.40 |
+| this work, merged bf16 | 59.33% | ±0.40 |
+| delta | **−0.46 pt** | σ_diff = 0.56 |
+
+The delta clears the −1 pt catastrophic-forgetting threshold we set in advance, and it is **smaller
+than the standard error of the difference** — i.e. indistinguishable from zero at 95%. The defensible
+statement is therefore narrow: **1,277 synthetic banking pairs plus 9,962 CIDAR records, trained for
+44 minutes at r=16, did not measurably degrade general Arabic knowledge.** All four ArabicMMLU
+categories move down by 0.21–1.11 pt, each within its own interval; we read this as noise rather than
+a domain-versus-general trade-off, and we do not claim the reverse either.
+
+Two honest limits on this table. First, `aratrust`, `madinahqa` and `alrage` — named in our own
+pinned-asset matrix as harness-provided — **do not exist at the pinned rev**, so the benchmark axis is
+one task wide, not four. Second, **no comparator was measured**: parity with one's own base model on a
+general benchmark is a regression check, and carries no information about the small-versus-large
+question in §1. That question remains open, and §6.6 is where it would have been answered.
+
+Practical note for anyone reproducing this: vLLM sizes its KV cache to the model's advertised
+context, and Qwen3-4B advertises 262,144 tokens — 36 GiB of KV against the ~11.5 GiB free after
+weights on a 24 GB card. The engine refuses to start, identically for every model, with an error that
+names neither the context length nor the card. Pinning `max_model_len` is not an optimization here;
+it is a precondition for the harness running at all on the hardware this recipe targets.
 
 ---
 
@@ -242,7 +268,9 @@ converted a bug into an inconvenience.
 
 ## 9. Limitations
 
-1. **No benchmark or comparator results** (§6.5) — no relative claim is available.
+1. **One benchmark, no comparator** (§6.5). ArabicMMLU is measured for this model and its base;
+   `aratrust`, `madinahqa` and `alrage` are absent from the pinned harness rev, and no larger or
+   Arabic-native comparator was run — so no *relative* quality claim is available.
 2. **No in-domain score.** The domain set holds 12/300 items; the small-versus-large question this
    project was designed around is unanswered.
 3. **No judge results and no human κ** (§7).
@@ -275,6 +303,7 @@ download, which requires network access.
 - [x] quantization-gate reports archived + hashed
 - [x] edge benchmark archived + hashed
 - [x] model card
-- [ ] benchmark results (§6.5)
+- [x] benchmark results (§6.5) — ArabicMMLU, fine-tuned + base, reports hashed
+- [ ] comparator results (ALLaM-7B, jais-6.7b, a large generalist)
 - [ ] cosign-signed artifacts on a registry
 - [ ] human validation protocol + anonymized scores

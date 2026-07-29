@@ -3,8 +3,9 @@
 > Every number here traces to a report in `ml/evals/reports/` by hash (working agreement #6).
 > Fields that were not measured say so; none are estimated. **No frontier-beating claims.**
 >
-> **Status: not releasable.** Two of the four §5.5 release conditions are unmet — see
-> [Release status](#release-status). This card documents a working artifact, not a shipped one.
+> **Status: not releasable.** The cosign signature is missing and the eval condition is only
+> partially met — ArabicMMLU is measured, the domain eval is not. See
+> [Release status](#release-status-55). This card documents a working artifact, not a shipped one.
 
 ## Summary
 
@@ -46,18 +47,34 @@ about two steps). Read the curve as coarse, not converged. MLflow run `b8ccaafc`
 
 ## Evaluation
 
-### Standardized benchmarks — **not measured**
+### Standardized benchmarks — **ArabicMMLU measured; the rest unavailable**
 
-| Benchmark | Base | This model |
-|---|---|---|
-| ArabicMMLU | — | — |
-| AraTrust | — | — |
-| MadinahQA | — | — |
-| ALRAGE | — | — |
+| Benchmark | Base (`Qwen3-4B-Instruct-2507`) | This model | Delta |
+|---|---|---|---|
+| ArabicMMLU (0-shot, 14,455 items) | **59.79%** ±0.40 | **59.33%** ±0.40 | **−0.46 pt** |
+| AraTrust | — | — | not in the pinned harness rev |
+| MadinahQA | — | — | not in the pinned harness rev |
+| ALRAGE | — | — | not in the pinned harness rev |
 
-lm-eval @ `6d642546f4688648fced259eb3302efd36ece5af` is pinned and wired, and the harness now runs
-in an isolated venv, but P4 has not completed. **No comparator** (ALLaM-7B, jais-6.7b, or a large
-generalist) was measured, so no relative claim of any kind exists.
+lm-eval @ `6d642546f4688648fced259eb3302efd36ece5af` (v0.4.12), identical command for both models:
+`--tasks arabicmmlu --num_fewshot 0 --seed 3407`, bf16, `max_model_len=8192`, vLLM 0.26.0 on one
+RTX 4090. Run 2026-07-29. Reports: `finetuned/…/results_2026-07-29T09-41-07.704402.json`
+(sha256 `1e7301d1…`) and `base/…/results_2026-07-29T09-49-43.877133.json` (sha256 `c758c32f…`).
+
+`aratrust`, `madinahqa` and `alrage` are named in CLAUDE.md §15 as available via lm-eval; at this
+pinned rev they are **not in the harness at all**, so they could not be run rather than merely being
+skipped.
+
+**Interpretation, stated conservatively.** −0.46 pt clears the §9.5 no-catastrophic-forgetting gate
+(≥ base − 1.0 pt). It is also smaller than the 0.56 pt standard error of the difference, so it is
+**statistically indistinguishable from zero**: the banking fine-tune left general Arabic knowledge
+intact. This is *not* a quality improvement, and ArabicMMLU is not a benchmark where a narrow
+domain SFT should be expected to produce one. Per category, all four move down by between 0.21 and
+1.11 pt — each inside its own interval, which is the shape of noise rather than a trade-off.
+
+**No comparator** (ALLaM-7B, jais-6.7b, or a large generalist) was measured, so no relative claim of
+any kind exists. Matching its own base model on a general benchmark says nothing about matching a
+larger one.
 
 ### Domain eval — **not available**
 
@@ -83,7 +100,9 @@ No judges were run, and the 50-item native-speaker validation does not exist, so
 
 Calibration was bilingual with ≥40% Arabic characters, enforced before the run — English-only
 calibration measurably degrades Arabic, and **Arabic degraded less than English under AWQ**, which
-is the intended effect. ArabicMMLU drop: **— (requires P4)**.
+is the intended effect. ArabicMMLU drop for the **quantized** artifacts: **— (still unmeasured)**.
+P4 scored `merged-bf16`, not AWQ or GGUF, so §5.3's "ArabicMMLU drops > 1.0 pt" clause has not been
+exercised against the artifacts it governs; only the ΔPPL half of that gate has.
 
 Reports: `ppl_gate_awq-w4a16.json`, `ppl_gate_sanad-Q4_K_M.gguf.json`.
 
@@ -116,11 +135,12 @@ the GGUF.
 |---|---|
 | licence gate | ✅ `profile: commercial`, all sources Apache-2.0 / CC-BY-4.0 |
 | ppl gate | ✅ both artifacts, per-language |
-| eval report attached | ❌ no benchmark or domain evaluation exists |
+| eval report attached | ⚠️ **partial** — ArabicMMLU measured for this model and its base (§ Evaluation); no domain eval (12/300 items), no judges, no comparator |
 | cosign signature | ❌ not signed |
 
-**Two of four unmet, so this version is not releasable** — and the artifact defects above would
-block it independently.
+**Still not releasable.** The signature is absent outright, and the eval condition is only half met:
+a general-benchmark forgetting check is not the domain evaluation §5.5 asks for. The artifact defects
+above would block release independently.
 
 ## Reproduction
 

@@ -10,8 +10,14 @@ repos:
       - id: check-yaml
         exclude: ^infra/helm/charts/.*/templates/
       - id: check-json
+      # Evidence files are excluded from the formatting hooks: a report's sha256 is quoted in
+      # RESULTS.md / the model card / the paper, so appending a newline silently invalidates every
+      # published hash and makes the committed bytes differ from what the pipeline emitted.
+      # Generated evidence is never reformatted (working agreements 5 and 6).
       - id: end-of-file-fixer
+        exclude: ^ml/evals/reports/
       - id: trailing-whitespace
+        exclude: ^ml/evals/reports/
       - id: detect-private-key
 
   - repo: https://github.com/gitleaks/gitleaks

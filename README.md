@@ -40,9 +40,10 @@ That is the tax this project measures, and the rule under the sentence is where 
 > serving path. Full measured detail, with every figure traced to a hashed report:
 > **[`RESULTS.md`](./RESULTS.md)** · **[model card](./docs/model-cards/sanad-qwen3-4b-bank-v0.1.0.md)**
 >
-> **The headline claim below is NOT yet supported.** P4 has not completed, so there are no
-> benchmark scores and no comparator; the domain eval holds 12 of 300 items; and no judge or
-> human-κ evaluation exists. The empty tables further down stay empty on purpose — see
+> **The headline claim below is NOT yet supported.** ArabicMMLU is now measured for the fine-tuned
+> model and its base (59.33% vs 59.79%, **−0.46 pt** — no catastrophic forgetting), but there is
+> **no comparator**, so no small-versus-large claim exists; the domain eval holds 12 of 300 items;
+> and no judge or human-κ evaluation exists. The remaining empty cells stay empty on purpose — see
 > [the honest-claims policy](#results). The model also has two known defects (stray `<tool_call>`
 > tokens, and an unvalidated domain answer that quoted USD for an AED product), both recorded
 > rather than cropped.
@@ -341,14 +342,17 @@ persisted** by default.
 ## Results
 
 > **Honest-claims policy** (prime directive 5). This table populates only from hashed report files
-> in `ml/evals/reports/`. The pipeline is built and gated; the runs land at P2–P4. **No number
-> appears here before its report exists** — which is why every cell below is an em-dash rather
-> than a plausible placeholder.
+> in `ml/evals/reports/`. **No number appears here before its report exists** — which is why the
+> remaining cells are em-dashes rather than plausible placeholders. The ArabicMMLU row traces to
+> `results_2026-07-29T09-41-07…json` (sha256 `1e7301d1…`, fine-tuned) and
+> `results_2026-07-29T09-49-43…json` (sha256 `c758c32f…`, base). Comparator columns are empty because
+> those models were never run — a −0.46 pt delta against its **own base** is a forgetting check and
+> says nothing about a 5–10× larger model.
 
 | Metric | Base Qwen3-4B | Sanad (fine-tuned) | ALLaM-7B | jais-6.7b | Falcon-H1-7B\* | Lands at |
 |---|---|---|---|---|---|---|
 | Domain eval (300 items) | — | — | — | — | — | P4 |
-| ArabicMMLU | — | — | — | — | — | P4 |
+| ArabicMMLU (0-shot, 14,455 items) | **59.79%** ±0.40 | **59.33%** ±0.40 | — | — | — | ✅ measured 2026-07-29 |
 | 3C3H (human-anchored) | — | — | — | — | — | P4 |
 | Edge tok/s @ watts (`x86-local`) | — | — | — | — | — | P3 |
 | Training cost | — | — | — | — | — | P2 · < $50 gate |
@@ -386,7 +390,7 @@ Phases are PR milestones, each with acceptance criteria in [CLAUDE.md §13](./CL
 | **P1 · Data** | CIDAR ingest, 300 banking pairs, dedup/langid, manifest gate | **next** — tooling ready, nothing ingested |
 | **P2 · Train + merge** | QLoRA on the local RTX 4090, MLflow, $0, < 16 GB VRAM | not started |
 | **P3 · Quantize + serve** | AWQ + GGUF+imatrix, ppl-gate, vLLM chart, CPU edge profile | not started |
-| **P4 · Eval harness** | full matrix, domain eval frozen, judges + human validation | not started |
+| **P4 · Eval harness** | full matrix, domain eval frozen, judges + human validation | **partial** — ArabicMMLU measured on fine-tuned + base (gate passed); no comparator, no domain eval, no judges |
 | **P5 · Full app** | chat SSE end to end, live Specimen, all pages and scenes | partial — scenes and API built, wiring at P5 |
 | **P6 · Sovereign hardening** | egress-zero 24 h, cosign verify path, checklist green | not started |
 | **P7 · Position + publish** | README numbers, model card, workshop paper draft | not started |

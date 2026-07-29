@@ -14,7 +14,8 @@ LM_EVAL_REV="${LM_EVAL_REV:-6d642546f4688648fced259eb3302efd36ece5af}" # v0.4.12
 # its subtasks are registered under other names. Asking for them cost a full P4 run on
 # 2026-07-28, which died after building a 10 GB venv with "Tasks not found".
 #
-# arabicmmlu is a group of 46 subtasks and is the benchmark §9.5's regression gate is defined on
+# arabicmmlu is a group of 45 subtasks (46 yaml files — one is the group itself) and is the
+# benchmark §9.5's regression gate is defined on
 # (fine-tuned within −1 pt of base = no catastrophic forgetting), so it is the one that matters.
 # Adding the OALL-v2 leaderboard groups is a separate, much longer run — validate first.
 TASKS="${SANAD_LM_EVAL_TASKS:-arabicmmlu}"

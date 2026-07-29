@@ -12,8 +12,8 @@
 > than one that shows exactly how far it got.
 
 Every number here traces to a file produced by the pipeline (prime directive 6). Figures that were
-not measured are written `—`, never estimated (§8.2). Read the [Scope and limits](#limits--what-this-run-does-not-show)
-section before quoting anything.
+not measured are written `—`, never estimated (§8.2). Read the
+[Scope and limits](#6-scope-and-limits--what-this-run-does-not-show) section before quoting anything.
 
 **Compute:** one RTX 4090 (24 GB) on an x86_64 Linux workstation for training and AWQ; a separate
 CPU-only 12-core laptop for the edge measurements. **Cost: $0** — local hardware (ADR-0003/0004).
@@ -30,6 +30,13 @@ whose evidence is untracked is not a claim.
 | `ppl_gate_sanad-Q4_K_M.gguf.json` | `c195e7447d2e00f5e0a09a0c27eb50c6b94912cb033148fb8966ec30535d21ef` |
 | `edge_bench_x86-local.txt` | `3fa61ce6c4261e3629c20ab6d5ac415839c1b1b707b0456b1786d4e3149ef7c8` |
 | `demo_x86-local.json` | `f3659759e260dbbc02dc6f403d11e57ac19781e0e6e0fe78a4b15f62601fde5a` |
+| `finetuned/merged-bf16/…/results_2026-07-29T09-41-07.704402.json` | `1e7301d1cadc7e6947dd2d2ab28b10f8404787f17d0ed6ac9b69c3f124ed21d6` |
+| `finetuned/merged-bf16/PROVENANCE.yaml` | `bdb441204f704c8475f857a6e16128d933588f90e3af0ac3f35d0d2cc478a2d8` |
+| `base/Qwen3-4B-Instruct-2507/…/results_2026-07-29T09-49-43.877133.json` | `c758c32fb7944b981816382fe7ac8b5eed9cab881c3bc1691913bec238c2bcf9` |
+| `base/Qwen3-4B-Instruct-2507/PROVENANCE.yaml` | `7424e24a8a0bb56c1bc8d3d008c2d03bfdca064cae4d574345ef9bd4216a07a4` |
+
+The two `log_samples` trees (52,291 per-sample records per model, 44 MB each) are **not** committed;
+they stay in `~/sanad-artifacts/`. The `results*.json` above hold every aggregate quoted in §5.
 
 Training metrics (loss curve, peak VRAM, FLOPs) come from MLflow run `b8ccaafc`
 (`hilarious-shad-242`), preserved in `mlflow.db` in the artifact archive. **Model weights are not
@@ -48,7 +55,10 @@ This matters more than the metrics, so it goes first.
 | Quantization preserves Arabic | **yes, for AWQ** | ΔPPL per language on a fixed held-out shard |
 | CPU-only edge deployment works | **yes** | GGUF Q4_K_M runs under llama.cpp at the pinned commit |
 | "Matches a 5–10× larger model in-domain" | **NO** | domain eval holds 12 of 300 items; no comparator was run |
-| Any benchmark score (ArabicMMLU, AraTrust, …) | **NO** | P4 never executed |
+| ArabicMMLU, fine-tuned **and** base, same pinned command | **yes** | 0-shot, 14,455 items, harness `6d642546…`; §5 |
+| No catastrophic forgetting on ArabicMMLU | **yes** | −0.46 pt vs base, inside the §9.5 −1 pt gate *and* inside noise |
+| AraTrust / MadinahQA / ALRAGE | **NO** | not present in the pinned harness rev at all (§5) |
+| Any *relative* quality claim vs a larger model | **NO** | no comparator was measured |
 | Any judge-based (3C3H) claim | **NO** | no judges run, and no human-κ sample exists |
 
 **The training corpus is 13.5% machine-drafted with no human reviewer.** Those records carry
@@ -202,18 +212,64 @@ is the 3.75% of the corpus that is hardest to get right.
 
 ---
 
-## 5. Scope and limits — what this run does **not** show
+## 5. Standardized benchmarks (P4) — ArabicMMLU
+
+Both models scored with the **identical** command (§5.4a): lm-evaluation-harness pinned at
+`6d642546f4688648fced259eb3302efd36ece5af` (v0.4.12), `--tasks arabicmmlu`, **0-shot**, seed 3407,
+`max_model_len=8192`, `gpu_memory_utilization=0.85`, bf16, vLLM 0.26.0 on one RTX 4090.
+14,455 items across 45 subtasks. Run 2026-07-29, ~7 min of scoring per model.
+
+| model | ArabicMMLU acc | stderr |
+|---|---|---|
+| `Qwen/Qwen3-4B-Instruct-2507` (base, rev `cdbee75f…`) | **59.79%** | ±0.40 |
+| `sanad-qwen3-4b-bank` merged-bf16 (fine-tuned) | **59.33%** | ±0.40 |
+| **delta (fine-tuned − base)** | **−0.46 pt** | — |
+
+**§9.5 no-catastrophic-forgetting gate: PASSED** (requires ≥ base − 1.0 pt).
+
+The honest reading is *narrower* than the gate: the standard error of the difference is 0.56 pt, so
+a −0.46 pt change is **statistically indistinguishable from zero** (95% interval ±1.10 pt). This
+result says the banking fine-tune **did not damage** general Arabic knowledge. It does **not** show
+an improvement, and ArabicMMLU is not the benchmark where a domain SFT should show one.
+
+| category | fine-tuned | base | delta |
+|---|---|---|---|
+| Language | 60.81% | 61.60% | −0.79 |
+| Other | 63.08% | 63.49% | −0.41 |
+| Social Science | 58.42% | 59.53% | −1.11 |
+| STEM | 61.89% | 62.10% | −0.21 |
+
+Every category moves down slightly and every move is within its own confidence interval — the
+signature of noise, not of a systematic trade. Largest per-subtask swings, listed because they are
+mostly small-*n* subtasks and should not be over-read: `arabic_language_middle_school` **+11.11**,
+`math_primary_school` +2.93, `arabic_language_grammar` +2.74 · `arabic_language_general` **−4.58**,
+`computer_science_middle_school` −3.70, `geography_primary_school` −3.51.
+
+**What this section does not contain.** `aratrust`, `madinahqa` and `alrage` are named in
+CLAUDE.md §15 as available "via lm-eval tasks"; at this pinned rev they **do not exist in the
+harness** (grepped, not assumed), so only ArabicMMLU could be run. No comparator (ALLaM-7B,
+jais-6.7b, a large generalist) was measured, so **no relative claim is available**. The other half
+of the §9.5 gate — domain ≥ base +5 pts — remains unevaluable while the domain set holds 12/300 items.
+
+Three attempts were needed to get here; the two bugs are recorded in §7 rather than hidden, because
+both were failures of *our* harness, not of the models.
+
+---
+
+## 6. Scope and limits — what this run does **not** show
 
 Most of these are *scope boundaries of a portfolio project*, not defects: a comparator matrix and a
 human-validated judge protocol are weeks of work and, for items 3 and 4, another person's time.
 They are listed so nothing here is mistaken for more than it is.
 
-1. **No benchmark numbers.** P4 (lm-eval over ArabicMMLU / AraTrust / MadinahQA / ALRAGE) was not
-   run; the GPU was returned to its shared owners instead. The regression gate
-   (domain ≥ base +5 pts, ArabicMMLU ≥ base −1 pt) has therefore never been evaluated.
+1. **Benchmarks cover ArabicMMLU only** (§5). `aratrust`, `madinahqa` and `alrage` are absent from
+   the pinned harness rev, so half of §15's benchmark list could not be run at all. Of the §9.5
+   regression gate, the ArabicMMLU half is now **evaluated and passed**; the domain half
+   (≥ base +5 pts) remains unevaluable — see item 3.
 2. **No comparator.** ALLaM-7B, jais-6.7b and a large generalist were never measured, so no
    relative claim exists. Falcon-H1 has no exact repo id pinned in §15 and was dropped rather
-   than guessed.
+   than guessed. The headline "matches a 5–10× larger model" is therefore still unavailable —
+   ArabicMMLU parity with *its own base model* is a forgetting check, not a size comparison.
 3. **Domain eval is 12 of 300 items.** No in-domain score is available, which is precisely the
    axis the project's thesis rests on.
 4. **No judges, no human-κ.** 3C3H was not run, and the 50-item native-speaker validation does not
@@ -233,7 +289,7 @@ They are listed so nothing here is mistaken for more than it is.
 
 ---
 
-## 6. Engineering notes from the run
+## 7. Engineering notes from the run
 
 `train/sft.py` and the P3 scripts had never executed end-to-end before this run. Seven defects
 surfaced, every one invisible to ruff, mypy and the unit suite, and every one reachable only with
@@ -260,3 +316,26 @@ bug into an inconvenience.
 
 Preflight now imports the training stack for real rather than calling `find_spec`, which is what
 let a broken dependency graph report "15 passed, 0 blocking" one second before an ImportError.
+
+### P4 added two more of the same kind (2026-07-29)
+
+| # | Defect | Fix |
+|---|---|---|
+| 11 | `max_model_len` never passed to vLLM. Qwen3-4B advertises a 262,144-token context, so vLLM sized KV cache to 36 GiB against the 11.45 GiB free after weights and the engine core refused to start — identically for both models, 12 minutes into a run that then wrote `p4 done` over two **empty** report dirs | `max_model_len=8192` pinned in `run_lm_eval.sh` and stamped into `PROVENANCE.yaml` |
+| 12 | `ninja` unreachable. The harness called `$EVAL_VENV/bin/lm_eval` by absolute path, which leaves `$EVAL_VENV/bin` off `PATH`; vLLM's inductor backend shells out to `ninja` by bare name and died with `FileNotFoundError` while ninja sat installed in that very venv | `export PATH="$EVAL_VENV/bin:$PATH"`; `ninja` now named explicitly in the venv install |
+
+Number 12 is the transferable one: **absolute-path invocation of a venv binary is not equivalent to
+activation.** The interpreter and libraries resolve correctly, so it looks equivalent right up to the
+moment a dependency shells out to a sibling console script by bare name.
+
+Both were masked by our own logging. The wrapper piped each eval through `tail -40`, which preserved
+the re-raise and discarded the `ValueError` explaining it — the log read
+"Engine core initialization failed. See root cause above" with the root cause cut off. Diagnosing it
+cost a fresh GPU repro the next morning. The wrapper now writes a full per-model log and summarises
+into the run log. **Never pipe a GPU run's output through `tail`** — truncation that keeps the
+exception and drops the cause is worse than no logging, because it looks like logging.
+
+A third, smaller lesson from the same session: the polling watcher used
+`grep -c pattern file || echo 0`, which emits **two** zeros on no-match (grep exits 1), so a
+string comparison against `"0"` read as "finished" and reported completion twice while the run was
+healthy and mid-flight. Parse integers, not blobs.
