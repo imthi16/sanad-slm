@@ -42,10 +42,12 @@ That is the tax this project measures, and the rule under the sentence is where 
 > Shipping is **bf16 + GGUF Q4_K_M**. Full detail, every figure traced to a hashed report:
 > **[`RESULTS.md`](./RESULTS.md)** · **[model card](./docs/model-cards/sanad-qwen3-4b-bank-v0.1.0.md)**
 >
-> **The headline claim below is NOT yet supported.** ArabicMMLU is now measured for the fine-tuned
-> model and its base (59.33% vs 59.79%, **−0.46 pt** — no catastrophic forgetting), but there is
-> **no comparator**, so no small-versus-large claim exists; the domain eval holds 12 of 300 items;
-> and no judge or human-κ evaluation exists. The remaining empty cells stay empty on purpose — see
+> **The headline claim below is NOT yet supported.** ArabicMMLU is measured for the fine-tuned model
+> and its base (59.33% vs 59.79%, **−0.46 pt** — no catastrophic forgetting), and the one comparator
+> that ran, **ALLaM-7B, beats this model by 10.68 pt** (Arabic-native, 1.75× the size — expected, and
+> reported rather than omitted). No 5–10× generalist was measured, so no small-versus-large claim
+> exists; the domain eval holds 12 of 300 items; and no judge or human-κ evaluation exists. The
+> remaining empty cells stay empty on purpose — see
 > [the honest-claims policy](#results). The model also has two known defects (stray `<tool_call>`
 > tokens, and an unvalidated domain answer that quoted USD for an AED product), both recorded
 > rather than cropped.
@@ -95,10 +97,15 @@ Details in [ADR-0005](./docs/adr/0005-specimen-hero-rubrication-design.md).
 | [![الرئيسية بالعربية: العنوان بخط عريف رقعة، والجملة تحتها خط مقطَّع بعدد الرموز](docs/screenshots/home-ar.png)](docs/screenshots/home-ar.png) | [![مختبر الخصوبة الرمزية: جدول الرموز لكل كلمة مع مقاطع كل مُرمِّز](docs/screenshots/tokenizer-lab.png)](docs/screenshots/tokenizer-lab.png) |
 
 > **About these captures.** The layout, type and palette are live. The token figures come from
-> the repository's [e2e fixture](./apps/web/e2e/fixtures/fertility.json), not from real
-> tokenizers — the pipeline has not run, so no `tokenizer.json` files exist locally yet. The
-> fixture's *ordering* matches each tokenizer's known Arabic fertility; its digits are not
-> measurements and are never quoted as such.
+> the repository's [e2e fixture](./apps/web/e2e/fixtures/fertility.json), **not from real
+> tokenizers.** `just sync-tokenizers` has now fetched **3 of the 5** (Qwen3, Falcon-H1, and ALLaM
+> converted from sentencepiece — each with its source commit recorded in
+> `out/tokenizers/tokenizers.manifest.json`); jais and Llama-3.2 are gated and need a human to accept
+> terms. But `just fertility` still cannot run: the **three frozen corpora it measures over do not
+> exist yet** (`evals/fertility/corpora/` holds only its README). Until they are collected under the
+> licence constraints documented there, the hero's digits remain fixture data. The fixture's
+> *ordering* matches each tokenizer's known Arabic fertility; its digits are not measurements and are
+> never quoted as such.
 
 Pages: `/` Specimen + results ledger · `/chat` bilingual streaming chat · `/evals` benchmark and
 judge dashboard · `/tokenizer` Fertility Lab · `/edge` live edge telemetry · `/registry` signed
@@ -400,7 +407,7 @@ Phases are PR milestones, each with acceptance criteria in [CLAUDE.md §13](./CL
 | Phase | Scope | Status |
 |---|---|---|
 | **P0 · Skeleton** | monorepo, justfile, CI, compose stack, RTL app shell | **done** — `just check` green, RTL+LTR snapshots green |
-| **P1 · Data** | CIDAR ingest, 300 banking pairs, dedup/langid, manifest gate | **done** — 12,007 records (CIDAR 9,962 + 1,277 own), gate green, provenance split published. Caveat: the banking pairs are **synthetic and unreviewed** |
+| **P1 · Data** | CIDAR ingest, 300 banking pairs, dedup/langid, manifest gate | **done** — 11,239 records (CIDAR 9,962 + 1,277 own), gate green, provenance split published. Caveat: the banking pairs are **synthetic and unreviewed** |
 | **P2 · Train + merge** | QLoRA on the local RTX 4090, MLflow, $0, < 16 GB VRAM | **done** — 0.73 h, peak VRAM **15.59 GB**, **$0**, 78 optimizer steps; merged-bf16 + manifest. Acceptance criteria met |
 | **P3 · Quantize + serve** | AWQ + GGUF+imatrix, ppl-gate, vLLM chart, CPU edge profile | **partial** — both artifacts built and ΔPPL-gated per language; **AWQ withheld** after losing 1.75 pt of ArabicMMLU (its accuracy clause), so shipping is bf16 + GGUF. Edge bench recorded (`x86-local`); the vLLM-on-k3s half is unexercised |
 | **P4 · Eval harness** | full matrix, domain eval frozen, judges + human validation | **partial** — ArabicMMLU measured on fine-tuned + base, forgetting gate passed; no comparator, no domain eval (12/300 items), no judges, no human κ |

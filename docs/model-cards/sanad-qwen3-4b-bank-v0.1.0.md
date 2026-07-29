@@ -14,7 +14,7 @@
 | Base model | `Qwen/Qwen3-4B-Instruct-2507` @ `cdbee75f17c01a7cc42f958dc650907174af0554` (Apache-2.0) |
 | Method | QLoRA (NF4) + DoRA, r=16 α=16, Unsloth 2026.7.5 + TRL 0.24, non-thinking chat template |
 | Target modules | `q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj` (×36 layers) |
-| Data | 12,007 records — **86.52% native / 0% translated / 13.48% synthetic**; MANIFEST sha256 `139e92e242548d009baeabc697f61ffb6c83b8859c793a0b73b2086c64503eec` |
+| Data | 11,239 records — **88.64% native / 0% translated / 11.36% synthetic**; MANIFEST sha256 `433b95142b342d54fff3e38ccf706dcc2136336114e8c1dc3fac2b2d2bb1e3e7` |
 | Train config sha256 | `4a70cdc191edc8cd6d77c15edafc579f82d6fc6845349cb1cfe482daec573fbc` |
 | Train budget | **0.73 h** on 1×RTX 4090 (24 GB) · peak VRAM **15.59 GB** · **$0** (local compute, ADR-0004) |
 | Schedule | 3 epochs = **78 optimizer steps**, effective batch 16, lr 2e-4 cosine, seed 3407 |
@@ -77,7 +77,7 @@ domain SFT should be expected to produce one. Per category, all four move down b
 
 **One comparator was measured, and this model loses to it.** ALLaM-7B-Instruct-preview scores
 **70.01%** — 10.68 points above this model. That is the expected outcome: 1.75× the parameters and
-Arabic-native pretraining, against a general-purpose 4B given 12,007 instruction records. The gap
+Arabic-native pretraining, against a general-purpose 4B given 11,239 instruction records. The gap
 is monotone in how much Arabic cultural/linguistic knowledge a category needs — **Humanities +19.99
 pt, STEM only +1.53 pt** — which is what native pretraining actually buys.
 

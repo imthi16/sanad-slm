@@ -73,9 +73,9 @@ For bilingual models we argue that is the wrong unit of measurement (§6.2).
 |---|---|---|---|
 | CIDAR (`arbml/CIDAR`) | 9,962 | native | Apache-2.0 |
 | own banking pairs | 1,277 | **synthetic** | CC-BY-4.0 |
-| total | **12,007** | native 86.52% / translated 0% / synthetic 13.48% | commercial-clean |
+| total | **11,239** | native 88.64% / translated 0% / synthetic 11.36% | commercial-clean |
 
-Language mix: **ar 90.39%, en 5.86%, mixed (code-switched) 3.75%.**
+Language mix: **ar 92.62%, en 3.53%, mixed (code-switched) 3.85%.**
 
 We treat **provenance as a first-class reported statistic**, not metadata. The 1,277 domain pairs
 are machine-drafted and carry `provenance: synthetic` with no reviewer initials. This is stated
@@ -197,7 +197,7 @@ GGUF.
 | package watts | — (RAPL unreadable without privilege) |
 
 Qualitative behaviour: the model answers MSA Arabic and English banking prompts and **preserves
-code-switching** — Latin `mobile banking app` remains intact inside an Arabic sentence, the 3.75%
+code-switching** — Latin `mobile banking app` remains intact inside an Arabic sentence, the 3.85%
 minority case. Two defects are visible: the served model prefixes responses with stray
 `<tool_call>` control tokens, and the domain answer quoting USD for an AED product (§3).
 
@@ -217,7 +217,7 @@ RTX 4090. 14,455 items over 45 subtasks.
 | delta vs ALLaM-7B | | **−10.68 pt** | σ_diff = 0.54 |
 
 **ALLaM-7B outperforms our model by 10.68 points, and we report it as the expected result.** It has
-1.75× the parameters and Arabic-native pretraining; we have a general-purpose 4B and 12,007
+1.75× the parameters and Arabic-native pretraining; we have a general-purpose 4B and 11,239
 instruction records. The informative part is that the gap is **monotone in how much Arabic
 cultural and linguistic knowledge a category demands**:
 
@@ -351,7 +351,7 @@ converted a bug into an inconvenience.
 
 Seed 3407 throughout. Pinned: base revision `cdbee75f17c01…`, llama.cpp `c0bc8591e` (b10107),
 lm-eval `6d642546…`. Lockfiles for both Python workspaces and the web app are committed. Data
-`MANIFEST.yaml` (sha256 `139e92e2…`) records per-source counts, licences, provenance split and
+`MANIFEST.yaml` (sha256 `433b9514…`) records per-source counts, licences, provenance split and
 per-shard hashes; the training config hash `4a70cdc1…` is logged into the experiment tracker
 alongside the resolved target-module list. Perplexity-gate reports and the edge benchmark are
 committed with their sha256 in `RESULTS.md`. Code Apache-2.0; own data CC-BY-4.0.

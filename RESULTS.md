@@ -66,9 +66,31 @@ This matters more than the metrics, so it goes first.
 | Any *relative* quality claim vs a larger model | **NO** | no comparator was measured |
 | Any judge-based (3C3H) claim | **NO** | no judges run, and no human-κ sample exists |
 
-**The training corpus is 13.5% machine-drafted with no human reviewer.** Those records carry
+**The training corpus is 11.4% machine-drafted with no human reviewer.** Those records carry
 `provenance: synthetic` honestly, but it means the domain adaptation is trained on text no
 native speaker has validated. That alone blocks the headline claim, independent of P4.
+
+**Corpus figures were corrected on 2026-07-29 and are lower than previously published.** Earlier
+drafts of this document reported 12,007 records, an 86.52/13.48 provenance split and
+`ar 90.39 / en 5.86 / mixed 3.75`. Those counted the two *derived* shards —
+`calib_bilingual_512.jsonl` (512) and `ppl_heldout_bilingual.jsonl` (256) — which §5.1 draws **from
+train and val**, so 768 records were counted twice and the language split was skewed by
+calibration's deliberately English-heavier sample. The true corpus is **11,239 unique records**.
+`manifest.py` now excludes derived shards from the census. Nothing downstream changes — training
+always read `splits/train.jsonl` (10,676), never the inflated census.
+
+**Two related defects found at the same time, both now fixed:** the per-source `provenance` field was
+a hand-written literal declaring `sanad-bank-pairs` as `native` while all 1,277 of its records are
+`synthetic` (prime directive 3 — it is now derived from the records); and the repository shipped the
+**unpopulated MANIFEST template** for all of P1–P5, so `just data-gate` passed while asserting nothing
+(`records=0`) and every eval report stamped that template's sha256 as `data_manifest_sha256`. The
+gate now refuses a manifest with zero records, and the populated manifest is committed.
+
+**Traceability caveat this creates:** the four eval reports in the table above carry
+`data_manifest_sha256: 139e92e2…`, which is the hash of the **empty template**, not of the corpus
+they were run against. The corpus manifest is `433b9514…`. The reports' benchmark numbers are
+unaffected — they never read the manifest — but that lineage field does not identify the data until a
+future run re-stamps it.
 
 ---
 
@@ -78,10 +100,10 @@ native speaker has validated. That alone blocks the headline claim, independent 
 |---|---|---|---|
 | CIDAR (`arbml/CIDAR`) | 9,962 | native | Apache-2.0 |
 | sanad-bank-pairs (own) | 1,277 | **synthetic** | CC-BY-4.0 |
-| **total** | **12,007** | | `profile: commercial` gate ✅ |
+| **total** | **11,239** | | `profile: commercial` gate ✅ |
 
-Provenance split: **native 86.52% · translated 0% · synthetic 13.48%**
-Language split: **ar 90.39% · en 5.86% · mixed 3.75%**
+Provenance split: **native 88.64% · translated 0% · synthetic 11.36%**
+Language split: **ar 92.62% · en 3.53% · mixed 3.85%**
 
 Derived shards: `splits/train.jsonl` 10,676 · `splits/val.jsonl` 563 (seeded 3407, stratified by
 `(lang, provenance)`) · `calib_bilingual_512.jsonl` 512 · `ppl_heldout_bilingual.jsonl` 256
@@ -238,7 +260,7 @@ Three prompts through `llama-server`'s OpenAI-compatible endpoint (§6.2), seed 
 | mixed | نعم، يمكن استخدام الـ **mobile banking app** لتحويل الأموال دولياً |
 
 The code-switched case works: Latin `mobile banking app` stays intact inside Arabic script, which
-is the 3.75% of the corpus that is hardest to get right.
+is the 3.85% of the corpus that is hardest to get right.
 
 **Two defects are visible in that output and are not cropped out here:**
 
@@ -268,7 +290,7 @@ Both models scored with the **identical** command (§5.4a): lm-evaluation-harnes
 | `sanad-qwen3-4b-bank` AWQ W4A16 (**not shipped**, §4) | 4B | 57.58% | ±0.40 | −1.75 pt |
 
 **ALLaM-7B beats our model by 10.68 points on ArabicMMLU, and that is the expected result.** It is
-1.75× the parameters and Arabic-native by pretraining, against a general-purpose 4B given 12,007
+1.75× the parameters and Arabic-native by pretraining, against a general-purpose 4B given 11,239
 instruction records. Nothing in this project's thesis predicted otherwise: the claim was always
 about *in-domain banking*, and ArabicMMLU is general Arabic knowledge. Reporting it prominently
 rather than burying it is the point of running a comparator at all.

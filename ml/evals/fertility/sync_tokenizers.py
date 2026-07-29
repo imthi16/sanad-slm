@@ -31,6 +31,7 @@ import sys
 from pathlib import Path
 
 import structlog
+from huggingface_hub import HfApi
 
 log = structlog.get_logger()
 
@@ -93,7 +94,16 @@ def convert_from_sentencepiece(model_id: str, dest: Path) -> tuple[bool, str]:
         backend.save(str(dest / "tokenizer.json"))
     except Exception as exc:  # any conversion failure is reported, never aborts the whole sync
         return False, f"sentencepiece conversion failed: {exc.__class__.__name__}"
-    return True, "converted-from-sentencepiece"
+    # Record the SOURCE COMMIT, not the bare word "converted-from-sentencepiece". §5.4d exists so a
+    # published tokens/word figure is tied to a tokenizer *version*; a literal string identifies
+    # nothing and cannot be re-resolved. The conversion is deterministic given the source revision,
+    # so the sha plus the marker is the honest provenance. Falls back to the marker alone only
+    # if the hub cannot be reached.
+    try:
+        sha = HfApi().model_info(model_id).sha
+        return True, f"{sha} (converted-from-sentencepiece)"
+    except Exception:
+        return True, "converted-from-sentencepiece (source revision unresolved)"
 
 
 def sync_one(model_id: str, out_root: Path) -> tuple[bool, str]:
