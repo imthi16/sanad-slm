@@ -18,7 +18,8 @@
 | Train config sha256 | `4a70cdc191edc8cd6d77c15edafc579f82d6fc6845349cb1cfe482daec573fbc` |
 | Train budget | **0.73 h** on 1×RTX 4090 (24 GB) · peak VRAM **15.59 GB** · **$0** (local compute, ADR-0004) |
 | Schedule | 3 epochs = **78 optimizer steps**, effective batch 16, lr 2e-4 cosine, seed 3407 |
-| Artifacts | merged-bf16 7.6 GB · AWQ-W4A16 2.5 GB · GGUF Q4_K_M 2.32 GiB (+ bilingual imatrix) |
+| Artifacts **shipped** | merged-bf16 7.6 GB · GGUF Q4_K_M 2.32 GiB (+ bilingual imatrix) |
+| Artifacts **withheld** | AWQ-W4A16 2.5 GB — **fails its ArabicMMLU gate** (−1.75 pt vs bf16); kept as evidence, not a deliverable |
 | Adapter sha256 | `d5e0bdf0afbe684d72668cf33d12245f57faaef5ce2a326cbb86783341f3642f` |
 | GGUF sha256 | `d3d8a2d97b0abedb6fd00133722a680fcab6cb5efc5044e5be7aea41913d2b0f` |
 | License | Apache-2.0 (derivative of an Apache-2.0 base; data CC-BY-4.0 / Apache-2.0 only) |
@@ -51,7 +52,8 @@ about two steps). Read the curve as coarse, not converged. MLflow run `b8ccaafc`
 
 | Benchmark | Base (`Qwen3-4B-Instruct-2507`) | This model | Delta |
 |---|---|---|---|
-| ArabicMMLU (0-shot, 14,455 items) | **59.79%** ±0.40 | **59.33%** ±0.40 | **−0.46 pt** |
+| ArabicMMLU (0-shot, 14,455 items) | **59.79%** ±0.40 | **59.33%** ±0.40 (bf16, shipped) | **−0.46 pt** |
+| ArabicMMLU — AWQ W4A16 (withheld) | 59.79% ±0.40 | 57.58% ±0.40 | −2.21 pt |
 | AraTrust | — | — | not in the pinned harness rev |
 | MadinahQA | — | — | not in the pinned harness rev |
 | ALRAGE | — | — | not in the pinned harness rev |
@@ -87,7 +89,11 @@ is therefore **unavailable**, and no partial version of it is quoted anywhere.
 No judges were run, and the 50-item native-speaker validation does not exist, so
 **human↔judge κ is absent**. Prime directive 5 blocks every judge-based claim without it.
 
-## Quantization gates — both PASSED
+## Quantization gates — ΔPPL passed for both; **AWQ fails its accuracy clause**
+
+§5.3 has two criteria. Both artifacts clear ΔPPL; AWQ does not clear ArabicMMLU.
+
+### (a) ΔPPL — both PASSED
 
 | artifact | subset | baseline | quantized | ΔPPL | gate |
 |---|---|---|---|---|---|
@@ -98,13 +104,32 @@ No judges were run, and the 50-item native-speaker validation does not exist, so
 | GGUF Q4_K_M | **Arabic** (n=226) | 6.2276 | 6.3765 | **+2.39%** | ≤5% ✅ |
 | GGUF Q4_K_M | English (n=20) | 6.8939 | 6.8369 | −0.83% | ≤5% ✅ |
 
-Calibration was bilingual with ≥40% Arabic characters, enforced before the run — English-only
-calibration measurably degrades Arabic, and **Arabic degraded less than English under AWQ**, which
-is the intended effect. ArabicMMLU drop for the **quantized** artifacts: **— (still unmeasured)**.
-P4 scored `merged-bf16`, not AWQ or GGUF, so §5.3's "ArabicMMLU drops > 1.0 pt" clause has not been
-exercised against the artifacts it governs; only the ΔPPL half of that gate has.
+Calibration was bilingual with ≥40% Arabic characters, enforced before the run, and **Arabic
+degraded less than English under AWQ** — the intended effect of that requirement.
 
-Reports: `ppl_gate_awq-w4a16.json`, `ppl_gate_sanad-Q4_K_M.gguf.json`.
+### (b) ArabicMMLU drop ≤ 1.0 pt — AWQ **FAILED**, GGUF **unmeasured**
+
+| artifact | ArabicMMLU | vs bf16 parent | gate ≤ 1.0 pt |
+|---|---|---|---|
+| bf16 (parent) | 59.33% ±0.40 | — | — |
+| **AWQ W4A16** | **57.58% ±0.40** | **−1.75 pt** | ❌ **FAIL** (3.1× σ_diff — a real regression) |
+| GGUF Q4_K_M | — | — | **not measured** |
+
+**Perplexity said this artifact was fine and the benchmark says it is not.** +1.44% Arabic ΔPPL is
+under half the budget, yet accuracy fell 1.75 pt. A pipeline gated on perplexity alone would have
+shipped it. **ΔPPL is not a sufficient proxy for downstream accuracy at 4-bit** — this is the single
+most useful negative result in the project.
+
+**AWQ is therefore withheld from the release path.** Shipping is bf16 + GGUF Q4_K_M.
+
+**Stated plainly rather than buried:** the GGUF's ArabicMMLU clause is *unmeasured*, so AWQ is
+excluded on a criterion the shipped GGUF has not faced. A same-bit-width scheme lost 1.75 pt, so
+Q4_K_M plausibly loses something comparable. 14,455 items × 4 choices through llama.cpp on CPU is
+many hours; the tractable route is a CUDA build or a declared stratified subsample. Until one is
+run, the shipped GGUF carries the same unquantified risk AWQ was rejected for.
+
+Reports: `ppl_gate_awq-w4a16.json`, `ppl_gate_sanad-Q4_K_M.gguf.json`,
+`awq/awq-w4a16/…/results_2026-07-29T10-34-58.885145.json` (sha256 `8b045e3d…`).
 
 ## Efficiency — CPU-only edge, `platform: x86-local`
 
@@ -134,7 +159,7 @@ the GGUF.
 | condition | state |
 |---|---|
 | licence gate | ✅ `profile: commercial`, all sources Apache-2.0 / CC-BY-4.0 |
-| ppl gate | ✅ both artifacts, per-language |
+| ppl gate | ⚠️ **ΔPPL ✅ both artifacts; AWQ fails the ArabicMMLU clause (−1.75 pt) and is withheld. GGUF's clause is unmeasured** |
 | eval report attached | ⚠️ **partial** — ArabicMMLU measured for this model and its base (§ Evaluation); no domain eval (12/300 items), no judges, no comparator |
 | cosign signature | ❌ not signed |
 

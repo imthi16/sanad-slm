@@ -34,6 +34,8 @@ whose evidence is untracked is not a claim.
 | `finetuned/merged-bf16/PROVENANCE.yaml` | `bdb441204f704c8475f857a6e16128d933588f90e3af0ac3f35d0d2cc478a2d8` |
 | `base/Qwen3-4B-Instruct-2507/…/results_2026-07-29T09-49-43.877133.json` | `c758c32fb7944b981816382fe7ac8b5eed9cab881c3bc1691913bec238c2bcf9` |
 | `base/Qwen3-4B-Instruct-2507/PROVENANCE.yaml` | `7424e24a8a0bb56c1bc8d3d008c2d03bfdca064cae4d574345ef9bd4216a07a4` |
+| `awq/awq-w4a16/…/results_2026-07-29T10-34-58.885145.json` | `8b045e3d5b7ecb68c648f54d660b51442c5a34e58e9fabcf0b1af94af32492af` |
+| `awq/awq-w4a16/PROVENANCE.yaml` | `9c7f179bb738f830d2e3671a6d7e5834f93c69a136f59bd537875ea80fe0bc6c` |
 
 The two `log_samples` trees (52,291 per-sample records per model, 44 MB each) are **not** committed;
 they stay in `~/sanad-artifacts/`. The `results*.json` above hold every aggregate quoted in §5.
@@ -52,7 +54,8 @@ This matters more than the metrics, so it goes first.
 | Claim | Available? | Why |
 |---|---|---|
 | Reproducible QLoRA recipe on one 24 GB GPU | **yes** | full config + lockfiles + pinned base revision; peak VRAM measured |
-| Quantization preserves Arabic | **yes, for AWQ** | ΔPPL per language on a fixed held-out shard |
+| Quantization preserves Arabic *perplexity* | **yes, both artifacts** | ΔPPL per language on a fixed held-out shard |
+| Quantization preserves Arabic *accuracy* | **NO for AWQ, unmeasured for GGUF** | AWQ drops **−1.75 pt** on ArabicMMLU vs bf16 — fails §5.3's 1.0 pt budget; AWQ is therefore **not shipped** (§4) |
 | CPU-only edge deployment works | **yes** | GGUF Q4_K_M runs under llama.cpp at the pinned commit |
 | "Matches a 5–10× larger model in-domain" | **NO** | domain eval holds 12 of 300 items; no comparator was run |
 | ArabicMMLU, fine-tuned **and** base, same pinned command | **yes** | 0-shot, 14,455 items, harness `6d642546…`; §5 |
@@ -133,9 +136,13 @@ Artifacts: `out/adapter` 146 MB · `out/merged-bf16` 7.6 GB (+ `manifest.json` l
 llama.cpp pinned at `c0bc8591e8815c63cb01dd3f051a8b0df02501c9` (release **b10107**), built
 **CPU-only** — the box has an NVIDIA driver but no nvcc, which is also the honest edge story.
 
-### AWQ quality gate — PASSED · `evals/reports/ppl_gate_awq-w4a16.json`
+### AWQ quality gate — **FAILED** · `evals/reports/ppl_gate_awq-w4a16.json` + `evals/reports/awq/`
 
-Perplexity on the fixed 256-item bilingual holdout, quantized vs bf16, both via transformers.
+§5.3's gate has **two** criteria. AWQ passes the first and fails the second, which is the entire
+reason the second exists.
+
+**(a) ΔPPL ≤ 3% — PASSED.** Perplexity on the fixed 256-item bilingual holdout, quantized vs bf16,
+both via transformers.
 
 | subset | bf16 | AWQ W4A16 | ΔPPL | gate ≤ 3% |
 |---|---|---|---|---|
@@ -143,12 +150,38 @@ Perplexity on the fixed 256-item bilingual holdout, quantized vs bf16, both via 
 | **Arabic** (n=226) | 6.736 | 6.833 | **+1.44%** | ✅ |
 | English (n=20) | 11.308 | 11.577 | +2.39% | ✅ |
 
-**Arabic degraded less than English.** That is the point of requiring ≥40% Arabic in the
-calibration set — §5.3 calls English-only calibration the most common silent failure mode, and
-this is direct evidence the bilingual calibration worked. Note the English subset is only 20
-records and therefore noisy; do not read the AR-vs-EN gap itself as meaningful.
+Arabic degraded less than English — evidence the ≥40%-Arabic calibration requirement did its job
+(§5.3 calls English-only calibration the most common silent failure mode). The English subset is
+only 20 records and noisy; do not read the AR-vs-EN gap itself as meaningful.
 
-### GGUF Q4_K_M quality gate — PASSED · `evals/reports/ppl_gate_sanad-Q4_K_M.gguf.json`
+**(b) ArabicMMLU drop ≤ 1.0 pt — FAILED.** Measured 2026-07-29, identical harness command to §5.
+
+| model | ArabicMMLU (0-shot, 14,455 items) | stderr |
+|---|---|---|
+| fine-tuned bf16 | 59.33% | ±0.40 |
+| **AWQ W4A16** | **57.58%** | ±0.40 |
+| **drop** | **−1.75 pt** (budget −1.00) | σ_diff 0.56 |
+
+The drop is **3.1× the standard error of the difference**, so it is a real regression, not noise.
+Against the *base* model AWQ is −2.21 pt, which also breaks the §9.5 no-forgetting threshold that
+the bf16 fine-tune passed comfortably.
+
+**This is the headline methodological result of P3+P4, and it is a negative one.** Perplexity said
+the quantization was fine — +1.44% Arabic, less than half the budget — and the benchmark says it is
+not. **ΔPPL is not a sufficient proxy for downstream accuracy at 4-bit.** A pipeline gated on
+perplexity alone would have shipped this artifact, and the only reason it was caught is that §5.3
+specifies both criteria. The gate fired; it is being respected.
+
+**Consequence: AWQ is not shipped.** The release path is **bf16 (`merged-bf16`) + GGUF Q4_K_M** only.
+The AWQ artifact stays in the archive as measured evidence, not as a deliverable.
+
+**Honest asymmetry, stated rather than buried:** the GGUF's ArabicMMLU clause is **unmeasured** (see
+§4's GGUF gate below). AWQ is excluded on a criterion the GGUF has not been tested against, and
+given a same-bit-width scheme lost 1.75 pt, Q4_K_M may well lose something similar. Measuring it
+needs llama.cpp with GPU offload — 52,291 requests at the CPU edge box's ~30 tok/s prompt throughput
+is many hours, which is why it has not been done rather than an oversight.
+
+### GGUF Q4_K_M quality gate — ΔPPL PASSED, ArabicMMLU **unmeasured** · `evals/reports/ppl_gate_sanad-Q4_K_M.gguf.json`
 
 Both sides through `llama-perplexity`, candidate against the **f16 GGUF**.
 
@@ -166,6 +199,12 @@ one-sided so an implausible "improvement" sailed through. Both are fixed: a GGUF
 compared against the f16 GGUF via the same binary, and a delta below −2% **fails** with the
 explanation that the harness improved rather than the model. The AWQ gate was never affected —
 both of its sides always went through transformers.
+
+**Its ArabicMMLU clause was never run.** Q4_K_M ships with only half its gate evaluated. Scoring
+14,455 items × 4 choices through llama.cpp on CPU is many hours at ~30 tok/s prompt throughput; the
+tractable route is a CUDA llama.cpp build (the box has no nvcc, but Docker with GPU passthrough
+works there), or a declared stratified subsample labelled as such. Until then, the shipped GGUF
+carries the same unquantified risk that AWQ was rejected for — a gap, not a clean bill of health.
 
 Worth keeping in mind when reading any quantization result: a gate that only checks one direction
 cannot tell a good model from a broken measurement.
@@ -219,13 +258,15 @@ Both models scored with the **identical** command (§5.4a): lm-evaluation-harnes
 `max_model_len=8192`, `gpu_memory_utilization=0.85`, bf16, vLLM 0.26.0 on one RTX 4090.
 14,455 items across 45 subtasks. Run 2026-07-29, ~7 min of scoring per model.
 
-| model | ArabicMMLU acc | stderr |
-|---|---|---|
-| `Qwen/Qwen3-4B-Instruct-2507` (base, rev `cdbee75f…`) | **59.79%** | ±0.40 |
-| `sanad-qwen3-4b-bank` merged-bf16 (fine-tuned) | **59.33%** | ±0.40 |
-| **delta (fine-tuned − base)** | **−0.46 pt** | — |
+| model | ArabicMMLU acc | stderr | vs base |
+|---|---|---|---|
+| `Qwen/Qwen3-4B-Instruct-2507` (base, rev `cdbee75f…`) | **59.79%** | ±0.40 | — |
+| `sanad-qwen3-4b-bank` merged-bf16 (**shipped**) | **59.33%** | ±0.40 | **−0.46 pt** |
+| `sanad-qwen3-4b-bank` AWQ W4A16 (**not shipped**, §4) | **57.58%** | ±0.40 | **−2.21 pt** |
 
-**§9.5 no-catastrophic-forgetting gate: PASSED** (requires ≥ base − 1.0 pt).
+**§9.5 no-catastrophic-forgetting gate: PASSED for bf16** (requires ≥ base − 1.0 pt). **The AWQ
+artifact fails it** at −2.21 pt, and separately fails §5.3's quantization clause at −1.75 pt vs its
+own bf16 parent — which is why the release path is bf16 + GGUF only.
 
 The honest reading is *narrower* than the gate: the standard error of the difference is 0.56 pt, so
 a −0.46 pt change is **statistically indistinguishable from zero** (95% interval ±1.10 pt). This

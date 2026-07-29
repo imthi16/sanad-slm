@@ -34,10 +34,12 @@ That is the tax this project measures, and the rule under the sentence is where 
 
 > **As of 2026-07-29 — P0–P5 have run. The model exists, is measured, and is benchmarked.**
 >
-> A ~4B bilingual model was trained (**44 min, peak VRAM 15.59 GB, $0**), quantized two ways with
-> per-language quality gates passed (**Arabic ΔPPL +1.44% AWQ, +2.39% GGUF**), and now answers
-> Arabic and English banking questions **on a CPU-only laptop at 6.19 tok/s** through the real
-> serving path. Full measured detail, with every figure traced to a hashed report:
+> A ~4B bilingual model was trained (**44 min, peak VRAM 15.59 GB, $0**), quantized two ways, and now
+> answers Arabic and English banking questions **on a CPU-only laptop at 6.19 tok/s** through the real
+> serving path. Both artifacts passed the per-language perplexity gate (**Arabic ΔPPL +1.44% AWQ,
+> +2.39% GGUF**) — but the AWQ artifact then **lost 1.75 pt of ArabicMMLU accuracy and was withheld**.
+> Perplexity did not predict that loss, which is the most useful thing this project measured.
+> Shipping is **bf16 + GGUF Q4_K_M**. Full detail, every figure traced to a hashed report:
 > **[`RESULTS.md`](./RESULTS.md)** · **[model card](./docs/model-cards/sanad-qwen3-4b-bank-v0.1.0.md)**
 >
 > **The headline claim below is NOT yet supported.** ArabicMMLU is now measured for the fine-tuned
@@ -357,6 +359,7 @@ persisted** by default.
 |---|---|---|---|---|---|---|
 | Domain eval (300 items) | — | — | — | — | — | blocked · 12/300 items authored |
 | ArabicMMLU (0-shot, 14,455 items) | **59.79%** ±0.40 | **59.33%** ±0.40 | — | — | — | ✅ measured 2026-07-29 |
+| ArabicMMLU — AWQ W4A16 (**withheld**) | 59.79% ±0.40 | 57.58% ±0.40 | — | — | — | ❌ −1.75 pt vs bf16, fails its gate |
 | 3C3H (human-anchored) | — | — | — | — | — | blocked · needs a native-speaker κ sample |
 | Edge gen tok/s, CPU-only (`x86-local`) | n/a | **6.19** (`llama-bench -t 6 -n 32`); ~4.7 end-to-end via `llama-server` | — | — | — | ✅ measured (Q4_K_M) |
 | Edge watts | — | — | — | — | — | Intel RAPL unreadable without sudo |
@@ -397,7 +400,7 @@ Phases are PR milestones, each with acceptance criteria in [CLAUDE.md §13](./CL
 | **P0 · Skeleton** | monorepo, justfile, CI, compose stack, RTL app shell | **done** — `just check` green, RTL+LTR snapshots green |
 | **P1 · Data** | CIDAR ingest, 300 banking pairs, dedup/langid, manifest gate | **done** — 12,007 records (CIDAR 9,962 + 1,277 own), gate green, provenance split published. Caveat: the banking pairs are **synthetic and unreviewed** |
 | **P2 · Train + merge** | QLoRA on the local RTX 4090, MLflow, $0, < 16 GB VRAM | **done** — 0.73 h, peak VRAM **15.59 GB**, **$0**, 78 optimizer steps; merged-bf16 + manifest. Acceptance criteria met |
-| **P3 · Quantize + serve** | AWQ + GGUF+imatrix, ppl-gate, vLLM chart, CPU edge profile | **partial** — AWQ **and** GGUF Q4_K_M built, both ppl gates passed per language, edge bench recorded (`x86-local`). The vLLM-on-k3s half is unexercised (no Docker/sudo locally) |
+| **P3 · Quantize + serve** | AWQ + GGUF+imatrix, ppl-gate, vLLM chart, CPU edge profile | **partial** — both artifacts built and ΔPPL-gated per language; **AWQ withheld** after losing 1.75 pt of ArabicMMLU (its accuracy clause), so shipping is bf16 + GGUF. Edge bench recorded (`x86-local`); the vLLM-on-k3s half is unexercised |
 | **P4 · Eval harness** | full matrix, domain eval frozen, judges + human validation | **partial** — ArabicMMLU measured on fine-tuned + base, forgetting gate passed; no comparator, no domain eval (12/300 items), no judges, no human κ |
 | **P5 · Full app** | chat SSE end to end, live Specimen, all pages and scenes | **partial** — streaming **and** non-streaming chat verified end to end against our own GGUF on CPU (`p5_e2e.json`), `x_sanad` metadata intact; `/readyz` red without Postgres/Redis; responses still carry the `<tool_call>` defect |
 | **P6 · Sovereign hardening** | egress-zero 24 h, cosign verify path, checklist green | not started — 3 checklist items need a live cluster |

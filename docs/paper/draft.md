@@ -12,14 +12,18 @@ Every figure cites a report in `ml/evals/reports/` by sha256; see `RESULTS.md` �
 
 We report a reproducible recipe for adapting a 4B-parameter bilingual (Modern Standard Arabic /
 English) instruction model to a narrow UAE retail-banking domain on a **single 24 GB consumer GPU
-at zero marginal cost**, and for shipping it to two deployment shapes — a GPU server via AWQ-W4A16
-and a **GPU-less commodity CPU** via GGUF Q4_K_M. Training completes in **44 minutes at 15.59 GB
-peak VRAM**. Our central methodological contribution is a **per-language quantization gate**: we
-show that reporting pooled perplexity delta conceals the failure mode that matters for Arabic, and
-that with bilingual calibration (≥40% Arabic by character count) Arabic degrades *less* than English
-under AWQ (**ΔPPL +1.44% vs +2.39%**). We also document a class of evaluation-harness defect we
-believe is under-reported: a one-sided perplexity gate accepted a physically impossible **−39.5%**
-result arising from a cross-runtime comparison. The resulting artifact answers Arabic and English
+at zero marginal cost**, targeting two deployment shapes — a GPU server via AWQ-W4A16 and a
+**GPU-less commodity CPU** via GGUF Q4_K_M. Training completes in **44 minutes at 15.59 GB peak
+VRAM**. Our central methodological contribution is a **two-criterion, per-language quantization
+gate**, and the useful result is that its two criteria *disagree*. With bilingual calibration (≥40%
+Arabic by character count) Arabic perplexity degrades *less* than English under AWQ (**ΔPPL +1.44%
+vs +2.39%**), comfortably inside a 3% budget — while the same artifact loses **1.75 points of
+ArabicMMLU accuracy** against its bf16 parent, 3.1× the standard error and well outside our 1-point
+budget. **Perplexity did not predict the accuracy loss**, and a ΔPPL-only gate of the kind commonly
+used would have shipped the artifact; we withheld it and ship bf16 + GGUF instead. We further show
+that pooled perplexity delta conceals the failure mode that matters for Arabic, and document a class
+of evaluation-harness defect we believe is under-reported: a one-sided perplexity gate accepted a
+physically impossible **−39.5%** result arising from a cross-runtime comparison. The resulting artifact answers Arabic and English
 banking questions on a 12-core laptop with no GPU at **6.19 tok/s generation**. We make no claim
 that this model matches larger general models in-domain; the evidence required for such a claim is
 enumerated in §9 and was not collected.
@@ -131,11 +135,11 @@ well-tuned model.
 
 ### 6.1 Artifacts
 
-| artifact | size | runtime |
-|---|---|---|
-| merged bf16 | 7.6 GB | reference |
-| AWQ-W4A16 (`compressed-tensors`) | **2.5 GB** | vLLM |
-| GGUF Q4_K_M + bilingual imatrix | **2.32 GiB** | llama.cpp |
+| artifact | size | runtime | shipped? |
+|---|---|---|---|
+| merged bf16 | 7.6 GB | reference / vLLM | **yes** |
+| AWQ-W4A16 (`compressed-tensors`) | **2.5 GB** | vLLM | **no** — fails the accuracy clause (§6.5.1) |
+| GGUF Q4_K_M + bilingual imatrix | **2.32 GiB** | llama.cpp | **yes** |
 
 ### 6.2 Per-language quantization gates — the main methodological result
 
@@ -223,6 +227,36 @@ one task wide, not four. Second, **no comparator was measured**: parity with one
 general benchmark is a regression check, and carries no information about the small-versus-large
 question in §1. That question remains open, and §6.6 is where it would have been answered.
 
+### 6.5.1 Perplexity does not predict 4-bit accuracy loss
+
+The same harness, run against the AWQ W4A16 artifact rather than its bf16 parent:
+
+| artifact | ArabicMMLU (0-shot) | Arabic ΔPPL | ΔPPL budget | accuracy budget |
+|---|---|---|---|---|
+| bf16 (parent) | 59.33% ±0.40 | — | — | — |
+| AWQ W4A16 | **57.58%** ±0.40 | **+1.44%** | ≤3% ✅ | **−1.75 pt** ≤1.0 ✗ |
+
+Perplexity on a held-out bilingual shard rose by less than half the permitted budget while
+ArabicMMLU accuracy fell by 1.75 points — **3.1× the standard error of the difference**, so not a
+sampling artefact. Had our release gate used ΔPPL alone, as quantization pipelines commonly do, this
+artifact would have shipped.
+
+We report this as the practical finding of the quantization stage. Perplexity is a fluency measure
+over a continuous distribution; multiple-choice accuracy depends on the *ordering* of a handful of
+candidate continuations, and 4-bit weight rounding can preserve the former while perturbing the
+latter. The bilingual-calibration precaution worked on its own terms — Arabic perplexity degraded
+*less* than English — which makes the accuracy loss harder to see, not easier: the metric the
+calibration was designed to protect looked healthy throughout.
+
+The recommendation is concrete: **gate quantized releases on at least one downstream benchmark in
+the target language, not on perplexity alone.** We withheld the AWQ artifact and shipped bf16 plus
+GGUF Q4_K_M instead.
+
+One limitation of our own compliance with that recommendation: the shipped **GGUF's ArabicMMLU clause
+is unmeasured**, because scoring 14,455 items × 4 candidates through llama.cpp on CPU is many hours.
+We therefore exclude one artifact on a criterion the other has not faced, and say so rather than
+implying a clean bill of health.
+
 Practical note for anyone reproducing this: vLLM sizes its KV cache to the model's advertised
 context, and Qwen3-4B advertises 262,144 tokens — 36 GiB of KV against the ~11.5 GiB free after
 weights on a 24 GB card. The engine refuses to start, identically for every model, with an error that
@@ -280,6 +314,13 @@ converted a bug into an inconvenience.
 7. **English holdout partition is 20 records**, so §6.2's cross-language comparison is directional.
 8. **Single seed, single run.** No variance estimates; every number is n=1.
 9. **Artifact defects** (§6.4) make the model a demonstration, not a deployable system.
+10. **The shipped GGUF's accuracy clause is unmeasured** (§6.5.1). We reject AWQ on a criterion
+    Q4_K_M has not faced, because scoring 14,455 items × 4 candidates through llama.cpp on CPU is
+    many hours. Our own recommendation — gate on a downstream benchmark, not perplexity — is
+    therefore only half-satisfied by the artifact we ship.
+11. **The 1.75 pt AWQ finding is one artifact, one scheme, one benchmark, one seed.** We do not claim
+    a general law about 4-bit quantization; we claim that ΔPPL passing is insufficient evidence for
+    release, which a single counter-example is enough to establish.
 
 ---
 
