@@ -59,11 +59,11 @@ This matters more than the metrics, so it goes first.
 | Quantization preserves Arabic *perplexity* | **yes, both artifacts** | ΔPPL per language on a fixed held-out shard |
 | Quantization preserves Arabic *accuracy* | **NO for AWQ, unmeasured for GGUF** | AWQ drops **−1.75 pt** on ArabicMMLU vs bf16 — fails §5.3's 1.0 pt budget; AWQ is therefore **not shipped** (§4) |
 | CPU-only edge deployment works | **yes** | GGUF Q4_K_M runs under llama.cpp at the pinned commit |
-| "Matches a 5–10× larger model in-domain" | **NO** | domain eval holds 12 of 300 items; no comparator was run |
+| "Matches a 5–10× larger model in-domain" | **NO** | domain eval holds 12 of 300 items; and no 5–10× generalist was measured — the one comparator that ran, ALLaM-7B, is 1.75× |
 | ArabicMMLU, fine-tuned **and** base, same pinned command | **yes** | 0-shot, 14,455 items, harness `6d642546…`; §5 |
 | No catastrophic forgetting on ArabicMMLU | **yes** | −0.46 pt vs base, inside the §9.5 −1 pt gate *and* inside noise |
 | AraTrust / MadinahQA / ALRAGE | **NO** | not present in the pinned harness rev at all (§5) |
-| Any *relative* quality claim vs a larger model | **NO** | no comparator was measured |
+| Any *relative* quality claim vs a larger model | **yes — and it is a loss** | ALLaM-7B (1.75×, Arabic-native) beats this model by **10.68 pt** on ArabicMMLU; §5. No 5–10× generalist was measured |
 | Any judge-based (3C3H) claim | **NO** | no judges run, and no human-κ sample exists |
 
 **The training corpus is 11.4% machine-drafted with no human reviewer.** Those records carry
@@ -360,10 +360,12 @@ They are listed so nothing here is mistaken for more than it is.
    the pinned harness rev, so half of §15's benchmark list could not be run at all. Of the §9.5
    regression gate, the ArabicMMLU half is now **evaluated and passed**; the domain half
    (≥ base +5 pts) remains unevaluable — see item 3.
-2. **No comparator.** ALLaM-7B, jais-6.7b and a large generalist were never measured, so no
-   relative claim exists. Falcon-H1 has no exact repo id pinned in §15 and was dropped rather
-   than guessed. The headline "matches a 5–10× larger model" is therefore still unavailable —
-   ArabicMMLU parity with *its own base model* is a forgetting check, not a size comparison.
+2. **One comparator, and this model loses to it.** ALLaM-7B was measured and **wins by 10.68 pt**
+   (§5). jais-6.7b is a gated repo whose terms were never accepted, and no large generalist was
+   run; Falcon-H1 has no exact repo id pinned in §15 and was dropped rather than guessed. The
+   headline "matches a 5–10× larger model" is therefore still unavailable — the one comparator
+   that ran is **1.75×, not 5–10×**, and ArabicMMLU parity with *its own base model* is a
+   forgetting check, not a size comparison.
 3. **Domain eval is 12 of 300 items.** No in-domain score is available, which is precisely the
    axis the project's thesis rests on.
 4. **No judges, no human-κ.** 3C3H was not run, and the 50-item native-speaker validation does not

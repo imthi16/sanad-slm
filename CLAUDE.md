@@ -11,18 +11,34 @@ This file is the single source of truth for Claude Code and human contributors. 
 before writing code. When this file and a README disagree, this file wins. Update it via PR when
 architecture decisions change (and add an ADR in `docs/adr/`).
 
-> **⚠️ Current repository state (as of 2026-07-15): P0 COMPLETE — `just check` GREEN, RTL/LTR
-> snapshots GREEN.** The full §2 tree exists (see ADR-0002 for in-spec implementation choices, ADR-0005 for the §8 design direction),
-> lockfiles are generated, `just check` passes end-to-end (ruff+mypy+pytest both Python
-> workspaces, biome+tsc+vitest+i18n-sync web, data-gate, verify-no-cdn), and Playwright RTL+LTR
-> snapshots pass for all 6 routes (baselines in `apps/web/e2e/rtl-ltr.spec.ts-snapshots/`).
-> The P1–P5 *source* is written but the pipeline has never been executed: no data ingested
-> (MANIFEST zeroed), domain eval holds 12/300 items, no reports, no model artifacts.
-> **Next: P1 (data).** The Qwen3 revision, llama.cpp commit and `LM_EVAL_REV` pins are filled and
-> verified (§15). Two prerequisites remain and neither is automatable: the **age recipient in
-> `.sops.yaml`** needs the owner's own key (`age-keygen`), and **`meta-llama/Llama-3.2-3B-Instruct`
-> is manually gated** — request access early, since its tokenizer is one of the five in the
-> fertility table. Remove this notice when P1 lands.
+> **⚠️ Current repository state (as of 2026-07-29): the pipeline has RUN end to end. P0–P2 done;
+> P3–P5 and P7 partial; P6 not started.** `just check` is green (ruff+mypy+pytest both Python
+> workspaces, biome+tsc+vitest+i18n-sync web, data-gate, verify-no-cdn) and all 23 Playwright
+> tests pass (RTL+LTR for 6 routes, design-token assertions, grapheme-safe streaming).
+> Every measured figure is traced by hash in **[`RESULTS.md`](./RESULTS.md)** — read it before
+> quoting any number.
+>
+> **What exists:** 11,239 data records (CIDAR 9,962 native + 1,277 own bank pairs, gate green) ·
+> a fine-tuned model (44 min, peak VRAM **15.59 GB**, **$0**) · AWQ + GGUF artifacts, both
+> ΔPPL-gated per language · ArabicMMLU on fine-tuned **59.33**, base **59.79** (−0.46 pt, forgetting
+> gate ✅), AWQ **57.58**, ALLaM-7B comparator **70.01** · chat verified end to end on CPU-only
+> llama.cpp through the real serving path.
+>
+> **What does not (and must not be claimed):** **AWQ is withheld** — it lost 1.75 pt of ArabicMMLU,
+> failing §5.3's accuracy clause, so the shipping path is **bf16 + GGUF Q4_K_M** · the **domain eval
+> still holds 12 of 300 items**, so the "matches a 5–10× larger model" thesis has *no* supporting
+> evidence · **no judges have run and no human-κ sample exists**, so every 3C3H claim is invalid
+> under prime directive 5 · `just fertility` cannot run — the three frozen corpora in
+> `evals/fertility/corpora/` were never collected, so the hero's token digits are **e2e fixture
+> data, not measurements** · the own bank pairs are `provenance: synthetic` and unreviewed.
+>
+> **Next: P4** — take the domain eval to 300 items, then judges + the 50-item human validation.
+> Nothing downstream (regression gate, headline table, paper claims) is unblocked until that lands.
+> Pins are filled and verified (§15); the `.sops.yaml` age recipient is set. Two gated repos still
+> need a human to accept terms once, and both silently shrink the evidence base:
+> **`meta-llama/Llama-3.2-3B-Instruct`** (`gated: manual`, one of the five fertility tokenizers —
+> 3 of 5 are synced) and **`inceptionai/jais-family-6p7b-chat`** (`gated: auto`, why the jais
+> comparator is absent). Update this notice whenever a phase changes state.
 
 ---
 

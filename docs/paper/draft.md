@@ -201,7 +201,7 @@ code-switching** — Latin `mobile banking app` remains intact inside an Arabic 
 minority case. Two defects are visible: the served model prefixes responses with stray
 `<tool_call>` control tokens, and the domain answer quoting USD for an AED product (§3).
 
-### 6.5 Standardized benchmarks — ArabicMMLU, no comparator
+### 6.5 Standardized benchmarks — ArabicMMLU, one comparator
 
 Both the fine-tuned model and its own base were scored with an identical command:
 lm-evaluation-harness at `6d642546f4688648fced259eb3302efd36ece5af` (v0.4.12),
@@ -325,9 +325,10 @@ converted a bug into an inconvenience.
 
 ## 9. Limitations
 
-1. **One benchmark, no comparator** (§6.5). ArabicMMLU is measured for this model and its base;
-   `aratrust`, `madinahqa` and `alrage` are absent from the pinned harness rev, and no larger or
-   Arabic-native comparator was run — so no *relative* quality claim is available.
+1. **One benchmark, one comparator** (§6.5). ArabicMMLU is measured for this model, its base and
+   ALLaM-7B; `aratrust`, `madinahqa` and `alrage` are absent from the pinned harness rev. jais-6.7b
+   is gated and no 5–10× generalist was run, so the *relative* claim that exists is a **loss to a
+   1.75× Arabic-native model by 10.68 pt** — not the size comparison the thesis needs.
 2. **No in-domain score.** The domain set holds 12/300 items; the small-versus-large question this
    project was designed around is unanswered.
 3. **No judge results and no human κ** (§7).

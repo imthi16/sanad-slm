@@ -169,7 +169,7 @@ the GGUF.
 |---|---|
 | licence gate | ✅ `profile: commercial`, all sources Apache-2.0 / CC-BY-4.0 |
 | ppl gate | ⚠️ **ΔPPL ✅ both artifacts; AWQ fails the ArabicMMLU clause (−1.75 pt) and is withheld. GGUF's clause is unmeasured** |
-| eval report attached | ⚠️ **partial** — ArabicMMLU measured for this model and its base (§ Evaluation); no domain eval (12/300 items), no judges, no comparator |
+| eval report attached | ⚠️ **partial** — ArabicMMLU measured for this model, its base and one comparator (ALLaM-7B, which wins by 10.68 pt — § Evaluation); no domain eval (12/300 items), no judges, no 5–10× generalist |
 | cosign signature | ❌ not signed |
 
 **Still not releasable.** The signature is absent outright, and the eval condition is only half met:
